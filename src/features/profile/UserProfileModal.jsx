@@ -37,7 +37,7 @@ export default function UserProfileModal({ userId, viewerId, onClose }) {
     const handleInvite = async (spaceId) => {
         setInvitingToSpace(spaceId);
         try {
-            await api.members.inviteUser(spaceId, userId, viewerId);
+            await api.members.inviteUser(spaceId, profile?.username || profile?.email || userId, viewerId);
             openInfo({
                 title: 'Invite Sent!',
                 message: `${profile?.name || 'User'} has been invited to the space.`,
@@ -65,7 +65,10 @@ export default function UserProfileModal({ userId, viewerId, onClose }) {
             try {
                 const [profileData, spacesData] = await Promise.all([
                     api.users.getProfile(userId, viewerId),
-                    api.users.getSharedSpaces(userId, viewerId)
+                    api.users.getSharedSpaces(userId, viewerId).catch(err => {
+                        console.warn('Failed to fetch shared spaces:', err);
+                        return [];
+                    })
                 ]);
                 setProfile(profileData);
                 setSharedSpaces(spacesData);

@@ -95,35 +95,68 @@ export const getImageUrl = (path) => {
     return `${API_BASE_URL}${path}`;
 };
 
+export const GRADIENT_OPTIONS = [
+    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+    'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+    'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+    'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)',
+    'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
+    'linear-gradient(135deg, #667eea 0%, #f093fb 100%)',
+];
+
 /**
- * Check if thumbnail is an image (vs gradient)
+ * Check if thumbnail is an image (vs gradient/color)
  * @param {string} thumbnail - The thumbnail value
  * @returns {boolean} True if it's an image URL
  */
 export const isImageThumbnail = (thumbnail) => {
     if (!thumbnail) return false;
-    return !thumbnail.startsWith('linear-gradient');
+    if (thumbnail.startsWith('linear-gradient')) return false;
+    const hexRegex = /^#?([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+    if (hexRegex.test(thumbnail)) return false;
+    return true;
 };
 
 /**
  * Get inline style for space thumbnail background
- * @param {string} thumbnail - The thumbnail value (gradient or image path)
+ * @param {string} thumbnail - The thumbnail value (gradient, hex color, or image path)
  * @returns {object} Style object for the container
  */
 export const getSpaceThumbnailStyle = (thumbnail) => {
-    if (!thumbnail || thumbnail.startsWith('linear-gradient')) {
-        return { background: thumbnail || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' };
+    if (!thumbnail) {
+        return { background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' };
     }
-    return { backgroundColor: '#333' };
+    if (thumbnail.startsWith('linear-gradient')) {
+        return { background: thumbnail };
+    }
+    const hexRegex = /^#?([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+    if (hexRegex.test(thumbnail)) {
+        const hex = thumbnail.startsWith('#') ? thumbnail : `#${thumbnail}`;
+        const matchingGradient = GRADIENT_OPTIONS.find(g => g.toLowerCase().includes(hex.toLowerCase()));
+        if (matchingGradient) {
+            return { background: matchingGradient };
+        }
+        return { background: `linear-gradient(135deg, ${hex} 0%, #764ba2 100%)` };
+    }
+    return {
+        backgroundImage: `url(${getImageUrl(thumbnail)})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center'
+    };
 };
 
 /**
  * Get full URL for space thumbnail image
  * @param {string} thumbnail - The thumbnail value
- * @returns {string|null} Full URL for image or null if gradient
+ * @returns {string|null} Full URL for image or null if gradient/color
  */
 export const getSpaceThumbnailUrl = (thumbnail) => {
-    if (!thumbnail || thumbnail.startsWith('linear-gradient')) return null;
+    if (!thumbnail) return null;
+    if (thumbnail.startsWith('linear-gradient')) return null;
+    const hexRegex = /^#?([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+    if (hexRegex.test(thumbnail)) return null;
     return getImageUrl(thumbnail);
 };
 

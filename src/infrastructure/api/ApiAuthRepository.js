@@ -19,6 +19,9 @@ export function createApiAuthRepository() {
          */
         async login(credentials) {
             const data = await httpClient.post('/auth/login', credentials);
+            if (data.accessToken && data.refreshToken) {
+                httpClient.setTokens(data.accessToken, data.refreshToken);
+            }
             return UserMapper.fromApi(data);
         },
 
@@ -29,6 +32,9 @@ export function createApiAuthRepository() {
          */
         async register(userData) {
             const data = await httpClient.post('/auth/register', userData);
+            if (data.accessToken && data.refreshToken) {
+                httpClient.setTokens(data.accessToken, data.refreshToken);
+            }
             return UserMapper.fromApi(data);
         },
 

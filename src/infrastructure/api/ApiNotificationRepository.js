@@ -13,8 +13,9 @@ import { NotificationMapper } from '../../domain/mappers/index.js';
 export function createApiNotificationRepository() {
     return {
         async getByUser(userId) {
-            const data = await httpClient.get(`/notifications${userId ? `?userId=${userId}` : ''}`);
-            return NotificationMapper.fromApiList(data);
+            const data = await httpClient.get('/notifications');
+            const notificationsList = data && data.data ? data.data : (Array.isArray(data) ? data : []);
+            return NotificationMapper.fromApiList(notificationsList);
         },
 
         async markRead(notificationId) {
@@ -26,11 +27,13 @@ export function createApiNotificationRepository() {
         },
 
         async create(data) {
-            return httpClient.post('/notifications', data);
+            // Notifications are created by backend events
+            return null;
         },
 
         async delete(notificationId) {
-            return httpClient.delete(`/notifications/${notificationId}`);
+            // Real backend uses markRead to handle notification state
+            return httpClient.put(`/notifications/${notificationId}/read`);
         },
     };
 }

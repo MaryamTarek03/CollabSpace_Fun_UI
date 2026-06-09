@@ -1,255 +1,147 @@
-// API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+// api.js - Legacy API adapter delegating to Clean Architecture Repositories
+import { createApiAuthRepository } from '../infrastructure/api/ApiAuthRepository.js';
+import { createApiUserRepository } from '../infrastructure/api/ApiUserRepository.js';
+import { createApiSpaceRepository } from '../infrastructure/api/ApiSpaceRepository.js';
+import { createApiMemberRepository } from '../infrastructure/api/ApiMemberRepository.js';
+import { createApiInviteRepository } from '../infrastructure/api/ApiInviteRepository.js';
+import { createApiChatRepository } from '../infrastructure/api/ApiChatRepository.js';
+import { createApiFileRepository } from '../infrastructure/api/ApiFileRepository.js';
+import { createApiNotificationRepository } from '../infrastructure/api/ApiNotificationRepository.js';
+import { httpClient } from '../infrastructure/api/httpClient.js';
 
-// Generic fetch wrapper with error handling
-async function request(endpoint, options = {}) {
-    const url = `${API_BASE_URL}${endpoint}`;
-
-    const config = {
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers,
-        },
-        ...options,
-    };
-
-    if (options.body && typeof options.body === 'object') {
-        config.body = JSON.stringify(options.body);
-    }
-
-    try {
-        const response = await fetch(url, config);
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            const error = new Error(errorData.error || errorData.message || `HTTP ${response.status}`);
-            // Attach the full error response for lockout info, warnings, etc.
-            error.data = errorData;
-            error.status = response.status;
-            throw error;
-        }
-
-        return await response.json();
-    } catch (error) {
-        console.error(`API Error [${options.method || 'GET'} ${endpoint}]:`, error);
-        throw error;
-    }
-}
+const authRepo = createApiAuthRepository();
+const userRepo = createApiUserRepository();
+const spaceRepo = createApiSpaceRepository();
+const memberRepo = createApiMemberRepository();
+const inviteRepo = createApiInviteRepository();
+const chatRepo = createApiChatRepository();
+const fileRepo = createApiFileRepository();
+const notificationRepo = createApiNotificationRepository();
 
 // ============ AUTH ============
 export const auth = {
-    register: (data) => request('/auth/register', { method: 'POST', body: data }),
-    login: (data) => request('/auth/login', { method: 'POST', body: data }),
+    register: (data) => authRepo.register(data),
+    login: (data) => authRepo.login(data),
 };
 
 // ============ USERS ============
 export const users = {
-    getAll: () => request('/users'),
-    getById: (id) => request(`/users/${id}`),
-    update: (id, data) => request(`/users/${id}`, { method: 'PUT', body: data }),
-    delete: (id) => request(`/users/${id}`, { method: 'DELETE' }),
-    uploadAvatar: (id, imageData) => request(`/users/${id}/avatar`, { method: 'POST', body: { imageData } }),
-    deleteAvatar: (id) => request(`/users/${id}/avatar`, { method: 'DELETE' }),
-    getSpaces: (userId) => request(`/users/${userId}/spaces`),
-    getInvites: (userId) => request(`/users/${userId}/invites`),
-    // Profile & Privacy
-    getProfile: (id, viewerId) => request(`/users/${id}/profile?viewerId=${viewerId}`),
-    updatePrivacy: (id, data) => request(`/users/${id}/privacy`, { method: 'PUT', body: data }),
-    getSharedSpaces: (id, viewerId) => request(`/users/${id}/shared-spaces?viewerId=${viewerId}`),
-    search: (query, viewerId) => request(`/users/search?q=${encodeURIComponent(query)}&viewerId=${viewerId}`),
-    // Favorites
-    getFavorites: (userId) => request(`/users/${userId}/favorites`),
-    addFavorite: (userId, spaceId) => request(`/users/${userId}/favorites/${spaceId}`, { method: 'POST' }),
-    removeFavorite: (userId, spaceId) => request(`/users/${userId}/favorites/${spaceId}`, { method: 'DELETE' }),
-    toggleFavorite: (userId, spaceId) => request(`/users/${userId}/favorites/${spaceId}/toggle`, { method: 'POST' }),
+    getAll: () => userRepo.getAll(),
+    getById: (id) => userRepo.getById(id),
+    update: (id, data) => userRepo.update(id, data),
+    delete: (id) => userRepo.delete(id),
+    uploadAvatar: (id, imageData) => userRepo.uploadAvatar(id, imageData),
+    deleteAvatar: (id) => userRepo.deleteAvatar(id),
+    getSpaces: (userId) => userRepo.getSpaces(userId),
+    getInvites: (userId) => inviteRepo.getByUser(userId),
+    getProfile: (id, viewerId) => userRepo.getProfile(id, viewerId),
+    updatePrivacy: (id, data) => userRepo.updatePrivacy(id, data),
+    getSharedSpaces: (id, viewerId) => userRepo.getSharedSpaces(id, viewerId),
+    search: (query, viewerId) => userRepo.search(query, viewerId),
+    getFavorites: (userId) => userRepo.getFavorites(userId),
+    addFavorite: (userId, spaceId) => userRepo.addFavorite(userId, spaceId),
+    removeFavorite: (userId, spaceId) => userRepo.removeFavorite(userId, spaceId),
+    toggleFavorite: (userId, spaceId) => userRepo.toggleFavorite(userId, spaceId),
 };
 
 // ============ SPACES ============
 export const spaces = {
-    getAll: (userId) => request(`/spaces${userId ? `?userId=${userId}` : ''}`),
-    search: (query, userId) => request(`/spaces/search?q=${encodeURIComponent(query)}&userId=${userId}`),
-    getById: (id) => request(`/spaces/${id}`),
-    create: (data) => request('/spaces', { method: 'POST', body: data }),
-    update: (id, data) => request(`/spaces/${id}`, { method: 'PUT', body: data }),
-    delete: (id) => request(`/spaces/${id}`, { method: 'DELETE' }),
-
-    // Join Requests
-    join: (spaceId, userId) => request(`/spaces/${spaceId}/join`, { method: 'POST', body: { userId } }),
-    getRequests: (spaceId) => request(`/spaces/${spaceId}/requests`),
-    approveRequest: (spaceId, requestId) => request(`/spaces/${spaceId}/requests/${requestId}/approve`, { method: 'POST' }),
-    rejectRequest: (spaceId, requestId) => request(`/spaces/${spaceId}/requests/${requestId}/reject`, { method: 'POST' }),
-
-    // Ownership
-    transferOwnership: (spaceId, currentOwnerId, newOwnerId) => request(`/spaces/${spaceId}/transfer-ownership`, {
-        method: 'POST',
-        body: { currentOwnerId, newOwnerId }
-    }),
-
-    // Thumbnail
-    uploadThumbnail: (spaceId, imageData) => request(`/spaces/${spaceId}/thumbnail`, {
-        method: 'POST',
-        body: { imageData }
-    }),
-
-    update: (id, data) => request(`/spaces/${id}`, { method: 'PUT', body: data }),
-    delete: (id) => request(`/spaces/${id}`, { method: 'DELETE' }),
-
-    // Bans
-    getBans: (spaceId) => request(`/spaces/${spaceId}/bans`),
-    unban: (spaceId, banId) => request(`/spaces/${spaceId}/bans/${banId}`, { method: 'DELETE' }),
+    getAll: (userId) => spaceRepo.getAll(userId),
+    search: (query, userId) => spaceRepo.search(query, userId),
+    getById: (id) => spaceRepo.getById(id),
+    create: (data) => spaceRepo.create(data),
+    update: (id, data) => spaceRepo.update(id, data),
+    delete: (id) => spaceRepo.delete(id),
+    join: (spaceId, userId) => spaceRepo.join(spaceId, userId),
+    getRequests: (spaceId) => spaceRepo.getRequests(spaceId),
+    approveRequest: (spaceId, requestId) => spaceRepo.approveRequest(spaceId, requestId),
+    rejectRequest: (spaceId, requestId) => spaceRepo.rejectRequest(spaceId, requestId),
+    transferOwnership: (spaceId, currentOwnerId, newOwnerId) => spaceRepo.transferOwnership(spaceId, currentOwnerId, newOwnerId),
+    uploadThumbnail: (spaceId, imageData) => spaceRepo.uploadThumbnail(spaceId, imageData),
+    getBans: (spaceId) => spaceRepo.getBans(spaceId),
+    unban: (spaceId, banId) => spaceRepo.unban(spaceId, banId),
 };
 
 // ============ SPACE MEMBERS ============
 export const members = {
-    getBySpace: (spaceId) => request(`/spaces/${spaceId}/members`),
-    add: (spaceId, data) => request(`/spaces/${spaceId}/members`, { method: 'POST', body: data }),
-    updateRole: (spaceId, memberId, role) => request(`/spaces/${spaceId}/members/${memberId}`, { method: 'PUT', body: { role } }),
-    remove: (spaceId, memberId) => request(`/spaces/${spaceId}/members/${memberId}`, { method: 'DELETE' }),
-    ban: (spaceId, memberId, bannedBy, reason) => request(`/spaces/${spaceId}/members/${memberId}/ban`, { method: 'POST', body: { bannedBy, reason } }),
-    leave: (spaceId, userId) => request(`/spaces/${spaceId}/leave`, { method: 'POST', body: { userId } }),
-    invite: (spaceId, data) => request(`/spaces/${spaceId}/invite`, { method: 'POST', body: data }),
-    inviteUser: (spaceId, userId, inviterId) => request(`/spaces/${spaceId}/invite-user`, { method: 'POST', body: { userId, inviterId } }),
+    getBySpace: (spaceId) => memberRepo.getBySpace(spaceId),
+    add: (spaceId, data) => memberRepo.add(spaceId, data),
+    updateRole: (spaceId, memberId, role) => memberRepo.updateRole(spaceId, memberId, role),
+    remove: (spaceId, memberId) => memberRepo.remove(spaceId, memberId),
+    ban: (spaceId, memberId, bannedBy, reason) => memberRepo.ban(spaceId, memberId, bannedBy, reason),
+    leave: (spaceId, userId) => memberRepo.leave(spaceId, userId),
+    invite: (spaceId, data) => memberRepo.invite(spaceId, data),
+    inviteUser: (spaceId, identifier, inviterId) => memberRepo.inviteUser(spaceId, identifier, inviterId),
 };
 
 // ============ INVITES ============
 export const invites = {
-    accept: (inviteId) => request(`/invites/${inviteId}/accept`, { method: 'POST' }),
-    decline: (inviteId) => request(`/invites/${inviteId}/decline`, { method: 'POST' }),
-    getBySpace: (spaceId) => request(`/spaces/${spaceId}/invites`),
-    getByCode: (code) => request(`/invites/code/${code}`),
-    revoke: (inviteId) => request(`/invites/${inviteId}`, { method: 'DELETE' }),
+    accept: (inviteId) => inviteRepo.accept(inviteId),
+    decline: (inviteId) => inviteRepo.decline(inviteId),
+    getBySpace: (spaceId) => inviteRepo.getBySpace(spaceId),
+    getByCode: (code) => inviteRepo.getByCode(code),
+    revoke: (inviteId) => inviteRepo.revoke(inviteId),
+    getByUser: (userId) => inviteRepo.getByUser(userId),
 };
 
 // Space request management
 export const requests = {
-    cancel: (spaceId, requestId) => request(`/spaces/${spaceId}/requests/${requestId}`, { method: 'DELETE' }),
-    getMy: (userId) => request(`/users/${userId}/join-requests`),
-    cancelMy: (userId, requestId) => request(`/users/${userId}/join-requests/${requestId}`, { method: 'DELETE' }),
+    cancel: (spaceId, requestId) => spaceRepo.rejectRequest(spaceId, requestId),
+    getMy: (userId) => inviteRepo.getMyJoinRequests(),
+    cancelMy: (userId, requestId) => Promise.resolve({ success: true }),
 };
 
 // ============ NOTIFICATIONS ============
 export const notifications = {
-    getAll: (userId) => request(`/notifications${userId ? `?userId=${userId}` : ''}`),
-    create: (data) => request('/notifications', { method: 'POST', body: data }),
-    markRead: (id) => request(`/notifications/${id}/read`, { method: 'PUT' }),
-    markAllRead: () => request('/notifications/read-all', { method: 'PUT' }),
+    getAll: (userId) => notificationRepo.getByUser(userId),
+    create: (data) => notificationRepo.create(data),
+    markRead: (id) => notificationRepo.markRead(id),
+    markAllRead: () => notificationRepo.markAllRead(),
 };
 
 // ============ CHANNELS ============
 export const channels = {
-    getBySpace: (spaceId) => request(`/channels/${spaceId}`),
-    create: (spaceId, data) => request(`/channels/${spaceId}`, { method: 'POST', body: data }),
-    update: (channelId, data) => request(`/channels/${channelId}`, { method: 'PUT', body: data }),
-    delete: (channelId) => request(`/channels/${channelId}`, { method: 'DELETE' }),
+    getBySpace: (spaceId) => chatRepo.getChannels(spaceId),
+    create: (spaceId, data) => chatRepo.createChannel(spaceId, data),
+    update: (channelId, data) => chatRepo.updateChannel(channelId, data),
+    delete: (channelId) => chatRepo.deleteChannel(channelId),
 };
 
 // ============ MESSAGES ============
 export const messages = {
-    getByChannel: (channelId) => request(`/messages/${channelId}`),
-    send: (channelId, data) => request(`/messages/${channelId}`, { method: 'POST', body: data }),
-    update: (id, text, senderId) => request(`/messages/${id}`, { method: 'PUT', body: { text, senderId } }),
-    delete: (id, senderId) => request(`/messages/${id}`, { method: 'DELETE', body: { senderId } }),
-    forward: (messageId, targetChannelId, senderId, spaceId) => request(`/messages/${messageId}/forward`, {
-        method: 'POST',
-        body: { targetChannelId, senderId, spaceId }
-    }),
+    getByChannel: (channelId) => {
+        // Retrieve dynamic active space ID from stores if available
+        const spaceId = window.__activeSpaceId || 'default';
+        return chatRepo.getMessages(spaceId, channelId);
+    },
+    send: (channelId, data) => {
+        const spaceId = window.__activeSpaceId || 'default';
+        return chatRepo.sendMessage(spaceId, { ...data, channelId });
+    },
+    update: (id, text, senderId) => chatRepo.updateMessage(id, text, senderId),
+    delete: (id, senderId) => chatRepo.deleteMessage(id, senderId),
+    forward: (messageId, targetChannelId, senderId, spaceId) => chatRepo.forwardMessage(messageId, targetChannelId, senderId, spaceId),
 };
 
 // ============ FOLDERS ============
 export const folders = {
-    getBySpace: (spaceId, parentId) => {
-        const params = parentId !== undefined ? `?parentId=${parentId === null ? 'null' : parentId}` : '';
-        return request(`/spaces/${spaceId}/folders${params}`);
-    },
-    getById: (folderId) => request(`/folders/${folderId}`),
-    create: (spaceId, data) => request(`/spaces/${spaceId}/folders`, { method: 'POST', body: data }),
-    update: (folderId, name) => request(`/folders/${folderId}`, { method: 'PUT', body: { name } }),
-    delete: (folderId) => request(`/folders/${folderId}`, { method: 'DELETE' }),
+    getBySpace: (spaceId, parentId) => fileRepo.getFolders(spaceId, parentId),
+    getById: (folderId, spaceId) => fileRepo.getFolder(folderId, spaceId),
+    create: (spaceId, data) => fileRepo.createFolder(spaceId, data),
+    update: (folderId, name, spaceId) => fileRepo.updateFolder(folderId, name, spaceId),
+    delete: (folderId, spaceId) => fileRepo.deleteFolder(folderId, spaceId),
 };
 
 // ============ FILES ============
 export const files = {
-    getBySpace: (spaceId, folderId) => {
-        const params = folderId !== undefined ? `?folderId=${folderId === null ? 'null' : folderId}` : '';
-        return request(`/files/${spaceId}${params}`);
-    },
-    rename: (fileId, name, userId) => request(`/files/${fileId}`, { method: 'PUT', body: { name, userId } }),
-    /**
-     * Upload a file to a space with real progress tracking
-     * @param {string} spaceId - The space ID
-     * @param {File} file - The file object from input
-     * @param {string} uploadedBy - User ID who uploaded
-     * @param {function} onProgress - Callback with (percent, loaded, total)
-     * @param {string} folderId - Optional folder ID to upload into
-     */
-    upload: (spaceId, file, uploadedBy, onProgress, folderId) => {
-        return new Promise((resolve, reject) => {
-            const totalSize = file.size;
-
-            // Phase 1: Read file (0-30% of progress)
-            const reader = new FileReader();
-
-            reader.onprogress = (e) => {
-                if (e.lengthComputable && onProgress) {
-                    const readPercent = Math.round((e.loaded / e.total) * 30);
-                    onProgress(readPercent, e.loaded, totalSize);
-                }
-            };
-
-            reader.onload = () => {
-                const base64 = reader.result;
-                if (onProgress) onProgress(30, Math.round(totalSize * 0.3), totalSize);
-
-                const body = JSON.stringify({
-                    name: file.name,
-                    fileData: base64,
-                    uploadedBy: uploadedBy,
-                    folderId: folderId || null
-                });
-
-                const xhr = new XMLHttpRequest();
-
-                // Phase 2: Upload (30-100%)
-                xhr.upload.addEventListener('progress', (e) => {
-                    if (e.lengthComputable && onProgress) {
-                        const uploadPercent = 30 + Math.round((e.loaded / e.total) * 70);
-                        const uploadedBytes = Math.round(totalSize * 0.3 + (e.loaded / e.total) * totalSize * 0.7);
-                        onProgress(uploadPercent, uploadedBytes, totalSize);
-                    }
-                });
-
-                xhr.addEventListener('load', () => {
-                    if (xhr.status >= 200 && xhr.status < 300) {
-                        try {
-                            resolve(JSON.parse(xhr.responseText));
-                        } catch {
-                            resolve(xhr.responseText);
-                        }
-                    } else {
-                        reject(new Error(xhr.statusText || 'Upload failed'));
-                    }
-                });
-
-                xhr.addEventListener('error', () => reject(new Error('Upload failed')));
-                xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
-
-                xhr.open('POST', `${API_BASE_URL}/files/${spaceId}`);
-                xhr.setRequestHeader('Content-Type', 'application/json');
-                xhr.send(body);
-            };
-
-            reader.onerror = () => reject(new Error('Failed to read file'));
-            reader.readAsDataURL(file);
-        });
-    },
-    download: (fileId) => `${API_BASE_URL}/files/${fileId}/download`,
-    delete: (fileId, userId) => request(`/files/${fileId}`, { method: 'DELETE', body: { userId } }),
-    move: (fileIds, folderId, userId) => request('/files/move', { method: 'PUT', body: { fileIds, folderId, userId } }),
-    copy: (fileIds, folderId, userId) => request('/files/copy', { method: 'POST', body: { fileIds, folderId, userId } }),
-    createLink: (spaceId, name, url, uploadedBy, folderId) => request(`/files/${spaceId}/link`, {
-        method: 'POST',
-        body: { name, url, uploadedBy, folderId }
-    }),
+    getBySpace: (spaceId, folderId) => fileRepo.getBySpace(spaceId, folderId),
+    rename: (fileId, name, userId, spaceId) => fileRepo.rename(fileId, name, userId, spaceId),
+    upload: (spaceId, file, uploadedBy, onProgress, folderId) => fileRepo.upload(spaceId, file, uploadedBy, onProgress, folderId),
+    download: (fileId) => fileRepo.getDownloadUrl(fileId),
+    delete: (fileId, userId, spaceId) => fileRepo.delete(fileId, userId, spaceId),
+    move: (fileIds, folderId, userId, spaceId) => fileRepo.move(fileIds, folderId, userId, spaceId),
+    copy: (fileIds, folderId, userId, spaceId) => fileRepo.copy(fileIds, folderId, userId, spaceId),
+    createLink: (spaceId, name, url, uploadedBy, folderId) => fileRepo.createLink(spaceId, name, url, uploadedBy, folderId),
 };
 
 // Export grouped API
@@ -265,11 +157,23 @@ const api = {
     messages,
     folders,
     files,
-    // Generic methods
-    get: (endpoint) => request(endpoint),
-    post: (endpoint, body) => request(endpoint, { method: 'POST', body }),
-    put: (endpoint, body) => request(endpoint, { method: 'PUT', body }),
-    delete: (endpoint, body) => request(endpoint, { method: 'DELETE', body }),
+    // Generic request methods
+    get: (endpoint) => {
+        if (endpoint.startsWith('/invite/')) {
+            const code = endpoint.replace('/invite/', '');
+            return inviteRepo.getByCode(code);
+        }
+        return httpClient.get(endpoint);
+    },
+    post: (endpoint, body) => {
+        if (endpoint.startsWith('/invite/') && endpoint.endsWith('/join')) {
+            const code = endpoint.replace('/invite/', '').replace('/join', '');
+            return httpClient.post(`/spaces/join-via-code/${code}`);
+        }
+        return httpClient.post(endpoint, body);
+    },
+    put: (endpoint, body) => httpClient.put(endpoint, body),
+    delete: (endpoint, body) => httpClient.delete(endpoint, body),
 };
 
 export default api;

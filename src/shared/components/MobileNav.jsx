@@ -13,13 +13,13 @@ export default function MobileNav() {
     const { imageUrl, initials, backgroundColor } = getAvatarProps(user);
 
     const navItems = [
-        { path: '/', icon: Grid, label: 'Spaces' },
-        { path: '/chat', icon: MessageSquare, label: 'Chat' },
-        { path: '/team', icon: Users, label: 'Team' },
+        { path: '/dashboard', icon: Grid, label: 'Spaces' },
+        { path: '/dashboard/chat', icon: MessageSquare, label: 'Chat' },
+        { path: '/dashboard/team', icon: Users, label: 'Team' },
     ];
 
     const isActive = (path) => {
-        if (path === '/') return location.pathname === '/';
+        if (path === '/dashboard') return location.pathname === '/dashboard' || location.pathname.startsWith('/dashboard/spaces');
         return location.pathname.startsWith(path);
     };
 

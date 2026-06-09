@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { getContainer } from '../infrastructure/di/container.js';
 import { UserMapper } from '../domain/mappers/index.js';
+import { registerAuthFailureCallback } from '../infrastructure/api/httpClient.js';
 
 /**
  * Auth Store - Refactored
@@ -31,9 +32,14 @@ const useAuthStore = create((set, get) => ({
         try {
             const authService = get()._getAuthService();
             const userData = await authService.login(identifier, password);
-            set({ user: userData, isAuthenticated: true, loading: false });
-            localStorage.setItem('user', JSON.stringify(userData));
-            return userData;
+            
+            // Fetch full profile info from /api/profile/me
+            const userService = get()._getUserService();
+            const fullUser = await userService.getProfile('me', userData.id);
+
+            set({ user: fullUser, isAuthenticated: true, loading: false });
+            localStorage.setItem('user', JSON.stringify(fullUser));
+            return fullUser;
         } catch (err) {
             const errorData = err.data || { error: err.message || 'Login failed' };
             set({ error: errorData, loading: false });
@@ -46,9 +52,14 @@ const useAuthStore = create((set, get) => ({
         try {
             const authService = get()._getAuthService();
             const newUser = await authService.register(userData);
-            set({ user: newUser, isAuthenticated: true, loading: false });
-            localStorage.setItem('user', JSON.stringify(newUser));
-            return newUser;
+            
+            // Fetch full profile info from /api/profile/me
+            const userService = get()._getUserService();
+            const fullUser = await userService.getProfile('me', newUser.id);
+
+            set({ user: fullUser, isAuthenticated: true, loading: false });
+            localStorage.setItem('user', JSON.stringify(fullUser));
+            return fullUser;
         } catch (err) {
             set({ error: err.message || 'Registration failed', loading: false });
             throw err;
@@ -160,3 +171,8 @@ const useAuthStore = create((set, get) => ({
 }));
 
 export default useAuthStore;
+
+// Register auth failure callback to log out automatically
+registerAuthFailureCallback(() => {
+    useAuthStore.getState().logout();
+});

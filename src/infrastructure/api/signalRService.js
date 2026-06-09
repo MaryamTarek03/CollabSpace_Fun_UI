@@ -3,7 +3,7 @@ import { httpClient } from "./httpClient.js";
 
 class SignalRService {
     connection = null;
-    activeSpaceId = null;
+    joinedSpaceIds = new Set();
     handlers = {};
 
     start(token) {
@@ -49,9 +49,10 @@ class SignalRService {
         this.connection.start()
             .then(() => {
                 console.log("SignalR Hub Connected successfully.");
-                if (this.activeSpaceId) {
-                    this.joinSpace(this.activeSpaceId);
-                }
+                this.joinedSpaceIds.forEach(spaceId => {
+                    this.connection.invoke("JoinSpace", spaceId)
+                        .catch(err => console.error("Re-join Space error: ", err));
+                });
             })
             .catch(err => {
                 console.error("SignalR Connection Error: ", err);
@@ -70,12 +71,14 @@ class SignalRService {
                 })
                 .finally(() => {
                     this.connection = null;
+                    this.joinedSpaceIds.clear();
                 });
         }
     }
 
     joinSpace(spaceId) {
-        this.activeSpaceId = spaceId;
+        if (!spaceId) return;
+        this.joinedSpaceIds.add(spaceId);
         if (this.connection && this.connection.state === signalR.HubConnectionState.Connected) {
             this.connection.invoke("JoinSpace", spaceId)
                 .catch(err => console.error("JoinSpace error: ", err));
@@ -83,7 +86,8 @@ class SignalRService {
     }
 
     leaveSpace(spaceId) {
-        this.activeSpaceId = null;
+        if (!spaceId) return;
+        this.joinedSpaceIds.delete(spaceId);
         if (this.connection && this.connection.state === signalR.HubConnectionState.Connected) {
             this.connection.invoke("LeaveSpace", spaceId)
                 .catch(err => console.error("LeaveSpace error: ", err));

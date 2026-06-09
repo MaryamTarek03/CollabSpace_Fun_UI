@@ -207,6 +207,8 @@ export default function AuthPage() {
         }, 150);
     };
 
+    const googleLoginUrl = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5153/api'}/auth/google`;
+
     return (
         <div className="min-h-screen bg-[#FFFDF5] flex items-center justify-center p-4">
             {/* Background decoration */}
@@ -389,7 +391,7 @@ export default function AuthPage() {
                                         )}
                                     </button>
                                     <a
-                                        href="http://localhost:5000/api/auth/google"
+                                        href={googleLoginUrl}
                                         className="px-4 py-3 bg-white text-gray-700 font-bold rounded-xl border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 transition-all active:translate-y-0 active:shadow-none flex items-center justify-center"
                                         title="Sign up with Google"
                                     >
@@ -425,7 +427,7 @@ export default function AuthPage() {
                                     </div>
                                     {/* Google OAuth Button - full width for login */}
                                     <a
-                                        href="http://localhost:5000/api/auth/google"
+                                        href={googleLoginUrl}
                                         className="w-full py-3 bg-white text-gray-700 font-bold rounded-xl border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 transition-all active:translate-y-0 active:shadow-none flex items-center justify-center gap-3"
                                     >
                                         <svg width="20" height="20" viewBox="0 0 24 24">

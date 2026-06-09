@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 
 // Data
-import { SPACE_TEMPLATES } from './data/mockData.jsx';
+import { SPACE_TEMPLATES } from './data/spaceTemplates.js';
 
 // Zustand Stores
 import { useAuthStore, useSpacesStore, useUIStore, useNotificationsStore } from './store';

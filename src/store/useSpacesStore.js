@@ -32,8 +32,18 @@ const useSpacesStore = create((set, get) => ({
     _getUserService: () => getContainer().services.user,
 
     // Actions
-    setActiveSpace: (space) => set({ activeSpace: space }),
-    clearActiveSpace: () => set({ activeSpace: null }),
+    setActiveSpace: (space) => {
+        if (space) {
+            window.__activeSpaceId = space.id;
+        } else {
+            window.__activeSpaceId = null;
+        }
+        set({ activeSpace: space });
+    },
+    clearActiveSpace: () => {
+        window.__activeSpaceId = null;
+        set({ activeSpace: null });
+    },
     setSortOption: (sortOption) => set({ sortOption }),
 
     // Fetch all spaces
@@ -43,7 +53,11 @@ const useSpacesStore = create((set, get) => ({
             const user = useAuthStore.getState().user;
             const spaceService = get()._getSpaceService();
             const spaces = await spaceService.getAll(user?.id);
-            set({ spaces, loading: false });
+            
+            // Extract favorite IDs from spaces list
+            const favIds = (spaces || []).filter(s => s.isFavorite).map(s => s.id);
+            
+            set({ spaces, userFavorites: favIds, loading: false });
             return spaces;
         } catch (err) {
             set({ error: err.message, loading: false });
@@ -107,19 +121,28 @@ const useSpacesStore = create((set, get) => ({
         try {
             const userService = get()._getUserService();
             const result = await userService.toggleFavorite(userId, spaceId);
+            const isFav = result?.isFavorite ?? false;
             set((state) => ({
-                userFavorites: result.isFavorite
+                userFavorites: isFav
                     ? [...state.userFavorites, spaceId]
-                    : state.userFavorites.filter(id => id !== spaceId)
+                    : state.userFavorites.filter(id => id !== spaceId),
+                spaces: state.spaces.map(s => s.id === spaceId ? { ...s, isFavorite: isFav } : s),
+                activeSpace: state.activeSpace?.id === spaceId ? { ...state.activeSpace, isFavorite: isFav } : state.activeSpace
             }));
             return result;
         } catch (err) {
             // Optimistic toggle for offline support
-            set((state) => ({
-                userFavorites: state.userFavorites.includes(spaceId)
-                    ? state.userFavorites.filter(id => id !== spaceId)
-                    : [...state.userFavorites, spaceId]
-            }));
+            set((state) => {
+                const wasFav = state.userFavorites.includes(spaceId);
+                const nextFav = !wasFav;
+                return {
+                    userFavorites: nextFav
+                        ? [...state.userFavorites, spaceId]
+                        : state.userFavorites.filter(id => id !== spaceId),
+                    spaces: state.spaces.map(s => s.id === spaceId ? { ...s, isFavorite: nextFav } : s),
+                    activeSpace: state.activeSpace?.id === spaceId ? { ...state.activeSpace, isFavorite: nextFav } : state.activeSpace
+                };
+            });
         }
     },
 

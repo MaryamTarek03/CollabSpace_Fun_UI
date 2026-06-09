@@ -40,27 +40,40 @@ export default function SpaceDetailsView() {
     useEffect(() => {
         if (!spaceId) return;
 
-        // 1. Try to find in My Joined Spaces first (fastest)
-        const localSpace = spaces.find(s => s.id === spaceId);
-        if (localSpace) {
-            setActiveSpace(localSpace);
-            return;
-        }
-
-        // 2. If not found locally, try to fetch from API
-        // This handles cases where I'm not a member but it's a public space
-        if (!spacesLoading) {
-            api.spaces.getById(spaceId)
-                .then(space => {
-                    setActiveSpace(space);
-                })
-                .catch(err => {
-                    console.error("Failed to fetch space:", err);
-                    // If 404 or 403 (private), redirect generic
-                    navigate('/');
+        // Fetch the full space details and files in parallel
+        Promise.all([
+            api.spaces.getById(spaceId),
+            api.files.getBySpace(spaceId)
+        ])
+            .then(([space, files]) => {
+                const members = space.members || [];
+                const resolvedFiles = (files || []).map(file => {
+                    if (file.uploaderName === 'Unknown' || !file.uploaderName) {
+                        const uploaderId = file.uploadedBy;
+                        const uploader = members.find(m => m.id === uploaderId);
+                        if (uploader) {
+                            return { ...file, uploaderName: uploader.name || uploader.username };
+                        }
+                    }
+                    return file;
                 });
-        }
-    }, [spaceId, spaces, spacesLoading, setActiveSpace, navigate]);
+                setActiveSpace({
+                    ...space,
+                    files: resolvedFiles
+                });
+            })
+            .catch(err => {
+                console.error("Failed to fetch space details or files:", err);
+                
+                // Fallback to local space if API fails (e.g. offline)
+                const localSpace = spaces.find(s => s.id === spaceId);
+                if (localSpace) {
+                    setActiveSpace(localSpace);
+                } else {
+                    navigate('/dashboard');
+                }
+            });
+    }, [spaceId, spaces, setActiveSpace, navigate]);
 
     // Show loading while spaces are loading or space not set yet
     if (spacesLoading || !activeSpace) {
@@ -73,7 +86,7 @@ export default function SpaceDetailsView() {
 
     const onBack = () => {
         setActiveSpace(null);
-        navigate('/');
+        navigate('/dashboard');
     };
 
     const onLaunchUnity = () => {
@@ -82,7 +95,7 @@ export default function SpaceDetailsView() {
 
     const onStartUnitySession = () => {
         setUnityLoadingProgress(0);
-        navigate(`/session/${activeSpace.id}`);
+        navigate(`/dashboard/session/${activeSpace.id}`);
         const interval = setInterval(() => {
             const current = useUIStore.getState().unityLoadingProgress;
             if (current >= 100) {
@@ -95,7 +108,7 @@ export default function SpaceDetailsView() {
 
     const onTextChat = () => {
         setActiveChatSpace(activeSpace);
-        navigate(`/chat/${activeSpace.id}`);
+        navigate(`/dashboard/chat/${activeSpace.id}`);
     };
 
     const handleLeaveSpace = () => {
@@ -394,7 +407,7 @@ export default function SpaceDetailsView() {
                             }
                             return acc + (Number(f.size) || 0);
                         }, 0)}
-                        ownerName={activeSpace.members?.find(m => m.userId === activeSpace.ownerId)?.name}
+                        ownerName={activeSpace.ownerName || activeSpace.members?.find(m => m.userId === activeSpace.ownerId)?.name}
                         createdAt={activeSpace.createdAt}
                         isPrivate={isPrivate}
                     />

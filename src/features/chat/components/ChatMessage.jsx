@@ -57,7 +57,12 @@ export default function ChatMessage({ msg, onForward }) {
     // Avatar - use message avatar data directly (server already joins user data)
     const avatarImage = getImageUrl(msg.avatarImage);
     const avatarColor = msg.avatarColor || '#ec4899';
-    const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
+    const initials = (typeof userName === 'string' ? userName : String(userName || 'U'))
+        .split(' ')
+        .map(n => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2) || 'U';
 
     // Long press handlers
     const handleTouchStart = () => {
@@ -227,7 +232,7 @@ export default function ChatMessage({ msg, onForward }) {
                             )}
                             <div ref={messageBubbleRef} className={`relative border-2 border-black p-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] ${isMe ? 'pr-10 bg-black text-white rounded-tl-2xl rounded-bl-2xl rounded-br-2xl shadow-[4px_4px_0px_0px_rgba(236,72,153,1)]' : 'pl-10 bg-white rounded-tr-2xl rounded-br-2xl rounded-bl-2xl'} transition-all`}>
                                 <p className="font-medium break-words">
-                                    {msg.text.split(/(@\[[a-zA-Z]+\]|@[a-zA-Z0-9_]+)/g).map((part, index) => {
+                                    {msg.text.split(/(@\[[a-zA-Z]+\]|@\{[a-fA-F0-9-]+\}|@[a-zA-Z0-9_]+)/g).map((part, index) => {
                                         // Special mentions - @[keyword]
                                         if (part.startsWith('@[')) {
                                             const keyword = part.slice(2, -1).toLowerCase();
@@ -242,6 +247,45 @@ export default function ChatMessage({ msg, onForward }) {
                                                 return <span key={index} className="font-black text-white bg-purple-500 px-1 rounded mx-0.5 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] text-xs py-0.5">{part}</span>;
                                             }
                                             return <span key={index} className="font-bold opacity-70">{part}</span>;
+                                        }
+
+                                        // User UUID mentions - @{uuid}
+                                        if (part.startsWith('@{') && part.endsWith('}')) {
+                                            const targetUserId = part.slice(2, -1);
+                                            const mention = msg.mentions?.find(m => m.id === targetUserId);
+                                            
+                                            if (mention) {
+                                                return (
+                                                    <span
+                                                        key={index}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            openProfileModal(mention.id);
+                                                        }}
+                                                        className={`font-bold cursor-pointer hover:underline ${isMe ? 'text-pink-300' : 'text-accent'}`}
+                                                    >
+                                                        @{mention.displayName || mention.username}
+                                                    </span>
+                                                );
+                                            }
+                                            
+                                            const member = members?.find(m => m.id === targetUserId || m.userId === targetUserId);
+                                            if (member) {
+                                                return (
+                                                    <span
+                                                        key={index}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            openProfileModal(member.userId || member.id);
+                                                        }}
+                                                        className={`font-bold cursor-pointer hover:underline ${isMe ? 'text-pink-300' : 'text-accent'}`}
+                                                    >
+                                                        @{member.name || member.username}
+                                                    </span>
+                                                );
+                                            }
+                                            
+                                            return <span key={index} className="font-bold opacity-70">@user</span>;
                                         }
 
                                         // User mentions - @username

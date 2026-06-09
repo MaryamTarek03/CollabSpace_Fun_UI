@@ -16,14 +16,14 @@ export default function Sidebar() {
 
     // Determine active state from current path
     const isActive = (path) => {
-        if (path === '/') return location.pathname === '/';
+        if (path === '/dashboard') return location.pathname === '/dashboard' || location.pathname.startsWith('/dashboard/spaces');
         return location.pathname.startsWith(path);
     };
 
     return (
         <aside className="fixed left-4 top-4 bottom-4 w-20 bg-white border-2 border-black rounded-full flex flex-col items-center py-8 z-40 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hidden md:flex">
             <div
-                onClick={() => navigate('/')}
+                onClick={() => navigate('/dashboard')}
                 className="w-12 h-12 bg-accent border-2 border-black rounded-xl flex items-center justify-center text-xl font-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] mb-8 transform hover:scale-110 hover:-rotate-6 active:scale-95 transition-transform cursor-pointer"
             >
                 C
@@ -32,22 +32,22 @@ export default function Sidebar() {
             <div className="flex-1 w-full flex flex-col items-center gap-4">
                 <NavButton
                     icon={<Grid size={20} />}
-                    active={isActive('/')}
+                    active={isActive('/dashboard')}
                     tooltip="Spaces"
-                    onClick={() => navigate('/')}
+                    onClick={() => navigate('/dashboard')}
                     iconClassName="hover:rotate-12"
                 />
                 <NavButton
                     icon={<MessageSquare size={20} />}
-                    active={isActive('/chat')}
+                    active={isActive('/dashboard/chat')}
                     tooltip="Chat"
-                    onClick={() => navigate('/chat')}
+                    onClick={() => navigate('/dashboard/chat')}
                 />
                 <NavButton
                     icon={<Users size={20} />}
-                    active={isActive('/team')}
+                    active={isActive('/dashboard/team')}
                     tooltip="Team"
-                    onClick={() => navigate('/team')}
+                    onClick={() => navigate('/dashboard/team')}
                 />
             </div>
 

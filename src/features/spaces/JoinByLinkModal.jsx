@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Link as LinkIcon, ArrowRight, Users, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useUIStore, useSpacesStore, useAuthStore } from '../../store';
 import api from '../../services/api';
@@ -23,7 +23,7 @@ const ModalWrapper = ({ children, isOpen, onClose }) => {
 
 export const JoinByLinkModal = () => {
     const { isJoinByLinkModalOpen, closeJoinByLinkModal, setCurrentView, inviteCodeToJoin, setInviteCodeToJoin } = useUIStore();
-    const { setActiveSpace } = useSpacesStore();
+    const { setActiveSpace, fetchSpaces } = useSpacesStore();
     const { user } = useAuthStore();
     const [inviteCode, setInviteCode] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -31,24 +31,10 @@ export const JoinByLinkModal = () => {
     const [previewSpace, setPreviewSpace] = useState(null);
     const [isJoining, setIsJoining] = useState(false);
 
-    // Reset state when modal opens/closes
-    useEffect(() => {
-        if (!isJoinByLinkModalOpen) {
-            setInviteCode('');
-            setError(null);
-            setPreviewSpace(null);
-            setIsLoading(false);
-            setInviteCodeToJoin(''); // Clear global state
-        } else if (inviteCodeToJoin) {
-            setInviteCode(inviteCodeToJoin);
-        }
-    }, [isJoinByLinkModalOpen, inviteCodeToJoin, setInviteCodeToJoin]);
+    const checkInviteCode = useCallback(async (targetCode) => {
+        if (!targetCode || !targetCode.trim()) return;
 
-    const handleCheckCode = async () => {
-        if (!inviteCode.trim()) return;
-
-        // Extract code from URL if full URL is pasted
-        let code = inviteCode.trim();
+        let code = targetCode.trim();
         if (code.includes('/invite/')) {
             code = code.split('/invite/')[1];
         }
@@ -72,6 +58,29 @@ export const JoinByLinkModal = () => {
         } finally {
             setIsLoading(false);
         }
+    }, []);
+
+    // Reset state when modal closes
+    useEffect(() => {
+        if (!isJoinByLinkModalOpen) {
+            setInviteCode('');
+            setError(null);
+            setPreviewSpace(null);
+            setIsLoading(false);
+        }
+    }, [isJoinByLinkModalOpen]);
+
+    // Consume and check invite code when modal opens
+    useEffect(() => {
+        if (isJoinByLinkModalOpen && inviteCodeToJoin) {
+            setInviteCode(inviteCodeToJoin);
+            checkInviteCode(inviteCodeToJoin);
+            setInviteCodeToJoin(''); // Consume code
+        }
+    }, [isJoinByLinkModalOpen, inviteCodeToJoin, setInviteCodeToJoin, checkInviteCode]);
+
+    const handleCheckCode = async () => {
+        await checkInviteCode(inviteCode);
     };
 
     const handleJoinSpace = async () => {
@@ -85,18 +94,32 @@ export const JoinByLinkModal = () => {
                 code = code.split('/invite/')[1];
             }
 
-            const result = await api.post(`/invite/${code}/join`, { userId: user.id });
+            // Get current spaces list
+            const currentSpaces = useSpacesStore.getState().spaces || [];
+            const currentIds = new Set(currentSpaces.map(s => s.id));
 
-            // Success! Switch to the space
-            setActiveSpace(previewSpace);
+            await api.post(`/invite/${code}/join`, { userId: user.id });
+
+            // Success! Fetch updated spaces
+            const updatedSpaces = await fetchSpaces();
+            const newSpace = (updatedSpaces || []).find(s => !currentIds.has(s.id));
+
+            if (newSpace) {
+                setActiveSpace(newSpace);
+            } else if (updatedSpaces && updatedSpaces.length > 0) {
+                setActiveSpace(updatedSpaces[updatedSpaces.length - 1]);
+            }
+
             setCurrentView('space-details'); // Assuming dashboard or chat view
             closeJoinByLinkModal();
 
         } catch (err) {
             console.error('Join space error:', err);
             if (err.response?.status === 400 && err.response?.data?.error === 'Already a member') {
-                // If already a member, just switch to it
-                setActiveSpace(previewSpace);
+                // Fetch spaces anyway and try to find the matching one
+                const updatedSpaces = await fetchSpaces();
+                const matchedSpace = (updatedSpaces || []).find(s => s.name === previewSpace.name) || previewSpace;
+                setActiveSpace(matchedSpace);
                 setCurrentView('space-details');
                 closeJoinByLinkModal();
             } else {

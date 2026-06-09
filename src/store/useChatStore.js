@@ -31,6 +31,11 @@ const useChatStore = create((set, get) => ({
 
     // Actions
     setActiveChatSpace: async (space) => {
+        if (space) {
+            window.__activeSpaceId = space.id;
+        } else {
+            window.__activeSpaceId = null;
+        }
         set({ activeChatSpace: space, channels: [], activeChannel: null, messages: [], members: [] });
         if (space) {
             await get().fetchChannels(space.id);
@@ -38,7 +43,10 @@ const useChatStore = create((set, get) => ({
         }
     },
 
-    clearActiveChatSpace: () => set({ activeChatSpace: null, channels: [], activeChannel: null, messages: [] }),
+    clearActiveChatSpace: () => {
+        window.__activeSpaceId = null;
+        set({ activeChatSpace: null, channels: [], activeChannel: null, messages: [] });
+    },
 
     setChatInput: (input) => set({ chatInput: input }),
 
@@ -139,8 +147,9 @@ const useChatStore = create((set, get) => ({
 
         set({ loading: true });
         try {
+            const spaceId = get().activeChatSpace?.id;
             const chatService = get()._getChatService();
-            const messages = await chatService.getMessages(null, channelId);
+            const messages = await chatService.getMessages(spaceId, channelId);
             set({ messages, loading: false });
             return messages;
         } catch (err) {

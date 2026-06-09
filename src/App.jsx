@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 
 // Data
-import { SPACE_TEMPLATES } from './data/mockData.jsx';
+import { SPACE_TEMPLATES } from './data/spaceTemplates.js';
 
 // Zustand Stores
 import { useAuthStore, useSpacesStore, useChatStore, useUIStore, useNotificationsStore } from './store';
@@ -43,8 +43,12 @@ import JoinSessionModal from './features/session/JoinSessionModal';
 
 import { JoinByLinkModal } from './features/spaces/JoinByLinkModal';
 import UserProfileModal from './features/profile/UserProfileModal';
+import { useSignalRIntegration } from './hooks/useSignalRIntegration';
 
 export default function App() {
+  // Activate SignalR integration
+  useSignalRIntegration();
+
   // --- Zustand Stores ---
   const {
     user,

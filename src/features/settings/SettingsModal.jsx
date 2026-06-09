@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Settings, Bell, LogOut, User, Shield, Trash2, Save, Camera, ZoomIn, ZoomOut, Check, Clock, Loader } from 'lucide-react';
+import { X, Settings, Bell, LogOut, User, Shield, Trash2, Save, Camera, ZoomIn, ZoomOut, Check, Clock, Loader, UserPlus } from 'lucide-react';
 import api from '../../services/api';
 import { formatDate, getImageUrl } from '../../shared/utils/helpers';
-import { useUIStore, useAuthStore } from '../../store';
+import { useUIStore, useAuthStore, useSpacesStore } from '../../store';
 import ModalWrapper from '../../shared/components/ModalWrapper';
 import Button, { CloseButton } from '../../shared/components/Button';
 
@@ -97,6 +97,7 @@ function Toggle({ checked, onChange }) {
 export default function SettingsModal() {
     const { isSettingsModalOpen, closeSettingsModal, settingsTab, setSettingsTab, themeColor } = useUIStore();
     const { user, logout, updateProfile } = useAuthStore();
+    const { fetchSpaces } = useSpacesStore();
 
     const [profileData, setProfileData] = useState({ name: '', username: '', bio: '' });
     const [isSaving, setIsSaving] = useState(false);
@@ -113,6 +114,8 @@ export default function SettingsModal() {
     const [privacyMessage, setPrivacyMessage] = useState('');
     const [pendingRequests, setPendingRequests] = useState([]);
     const [loadingRequests, setLoadingRequests] = useState(false);
+    const [pendingInvitations, setPendingInvitations] = useState([]);
+    const [loadingInvitations, setLoadingInvitations] = useState(false);
     const fileInputRef = useRef(null);
 
     useEffect(() => {
@@ -130,6 +133,13 @@ export default function SettingsModal() {
         }
     }, [settingsTab, user?.id, isSettingsModalOpen]);
 
+    useEffect(() => {
+        if (settingsTab === 'invitations' && user?.id && isSettingsModalOpen) {
+            setLoadingInvitations(true);
+            api.invites.getByUser(user.id).then(data => setPendingInvitations(data || [])).catch(console.error).finally(() => setLoadingInvitations(false));
+        }
+    }, [settingsTab, user?.id, isSettingsModalOpen]);
+
     useEffect(() => { if (user) setProfileData({ name: user.name || '', username: user.username || '', bio: user.bio || '' }); }, [user, isSettingsModalOpen]);
 
     if (!isSettingsModalOpen) return null;
@@ -137,6 +147,7 @@ export default function SettingsModal() {
     const initials = user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U';
     const tabs = [
         { id: 'profile', label: 'Profile', icon: User },
+        { id: 'invitations', label: 'Invitations', icon: UserPlus },
         { id: 'requests', label: 'My Requests', icon: Clock },
         { id: 'privacy', label: 'Privacy', icon: Shield },
         { id: 'notifications', label: 'Notifications', icon: Bell },
@@ -182,6 +193,25 @@ export default function SettingsModal() {
 
     const handleCancelRequest = async (requestId) => {
         try { await api.requests.cancelMy(user.id, requestId); setPendingRequests(prev => prev.filter(r => r.id !== requestId)); } catch { }
+    };
+
+    const handleAcceptInvitation = async (inviteId) => {
+        try {
+            await api.invites.accept(inviteId);
+            setPendingInvitations(prev => prev.filter(inv => inv.id !== inviteId));
+            fetchSpaces();
+        } catch (err) {
+            console.error('Failed to accept invitation:', err);
+        }
+    };
+
+    const handleDeclineInvitation = async (inviteId) => {
+        try {
+            await api.invites.decline(inviteId);
+            setPendingInvitations(prev => prev.filter(inv => inv.id !== inviteId));
+        } catch (err) {
+            console.error('Failed to decline invitation:', err);
+        }
     };
 
     // Avatar handlers
@@ -282,6 +312,55 @@ export default function SettingsModal() {
                                 <FormField label="Bio" value={profileData.bio} onChange={(v) => handleFieldChange('bio', v)} error={validationErrors.bio} maxLen={160} textarea />
                                 {saveMessage && <div className={`text-sm font-bold ${saveMessage.includes('updated') ? 'text-green-600' : 'text-red-500'}`}>{saveMessage}</div>}
                                 <Button onClick={handleSaveProfile} disabled={isSaving} variant="primary" className="!bg-black" icon={isSaving ? <Loader className="animate-spin" /> : <Save />}>{isSaving ? 'Saving...' : 'Save Changes'}</Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Invitations Tab */}
+                    {settingsTab === 'invitations' && (
+                        <div className="space-y-6">
+                            <h3 className="text-xl font-black flex items-center gap-2"><UserPlus size={20} /> Received Invitations</h3>
+                            <p className="text-gray-500 text-sm">Spaces you have been invited to join.</p>
+                            <div className="bg-white border-2 border-black rounded-2xl p-6">
+                                {loadingInvitations ? <div className="flex justify-center py-8"><Loader className="animate-spin text-gray-400" /></div>
+                                    : pendingInvitations.length === 0 ? (
+                                        <div className="text-center py-8 text-gray-500">
+                                            <UserPlus size={32} className="mx-auto mb-2 opacity-50" />
+                                            <p>No pending invitations</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            {pendingInvitations.map(inv => (
+                                                <div key={inv.id} className="flex items-center justify-between p-4 bg-purple-50 border-2 border-purple-300 rounded-xl">
+                                                    <div>
+                                                        <p className="font-bold">{inv.spaceName}</p>
+                                                        <p className="text-xs text-gray-500">
+                                                            Invited by <span className="font-semibold">{inv.inviterName || 'unknown'}</span>
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <Button
+                                                            onClick={() => handleAcceptInvitation(inv.id)}
+                                                            variant="success"
+                                                            size="sm"
+                                                            icon={<Check size={14} />}
+                                                        >
+                                                            Accept
+                                                        </Button>
+                                                        <Button
+                                                            onClick={() => handleDeclineInvitation(inv.id)}
+                                                            variant="danger"
+                                                            size="sm"
+                                                            icon={<X size={14} />}
+                                                        >
+                                                            Decline
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )
+                                }
                             </div>
                         </div>
                     )}

@@ -9,9 +9,9 @@ export default function InvitePage() {
         if (code) {
             // Redirect to dashboard with invite code in state
             // The Dashboard view will pick this up and open the Join Modal
-            navigate('/', { state: { inviteCode: code }, replace: true });
+            navigate('/dashboard', { state: { inviteCode: code }, replace: true });
         } else {
-            navigate('/', { replace: true });
+            navigate('/dashboard', { replace: true });
         }
     }, [code, navigate]);
 

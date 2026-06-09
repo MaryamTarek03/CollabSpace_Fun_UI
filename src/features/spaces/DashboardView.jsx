@@ -58,7 +58,7 @@ export default function DashboardView() {
 
     const enterSpace = (space) => {
         setActiveSpace(space);
-        navigate(`/spaces/${space.id}`);
+        navigate(`/dashboard/spaces/${space.id}`);
     };
 
     const handleToggleFavorite = async (spaceId) => {

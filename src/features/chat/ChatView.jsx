@@ -24,7 +24,7 @@ export default function ChatView() {
         setChatInput,
         sendMessage,
         forwardMessage,
-        getCurrentMessages,
+        messages,
         members
     } = useChatStore();
 
@@ -32,7 +32,7 @@ export default function ChatView() {
     const { user } = useAuthStore();
 
     const messagesEndRef = useRef(null);
-    const currentMessages = getCurrentMessages();
+    const currentMessages = messages;
 
     // Set active chat space based on route param
     useEffect(() => {
@@ -168,7 +168,7 @@ export default function ChatView() {
                 <div className="flex-1 overflow-y-auto w-full px-4 py-2">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full pb-4">
                         {spaces.map(space => (
-                            <button key={space.id} onClick={() => navigate(`/chat/${space.id}`)} className="flex items-center gap-4 p-4 bg-white border-2 border-black rounded-2xl hover:bg-gray-50 hover:-translate-y-1 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all text-left group">
+                            <button key={space.id} onClick={() => navigate(`/dashboard/chat/${space.id}`)} className="flex items-center gap-4 p-4 bg-white border-2 border-black rounded-2xl hover:bg-gray-50 hover:-translate-y-1 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all text-left group">
                                 <div className="w-12 h-12 rounded-xl border-2 border-black flex-shrink-0 overflow-hidden" style={getSpaceThumbnailStyle(space.thumbnail)}>
                                     {isImageThumbnail(space.thumbnail) && (
                                         <img src={getSpaceThumbnailUrl(space.thumbnail)} alt={space.name} className="w-full h-full object-cover" />

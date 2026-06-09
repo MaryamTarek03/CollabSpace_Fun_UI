@@ -278,6 +278,7 @@ export const httpClient = {
 
     getBaseUrl: () => API_BASE_URL,
     getAccessToken: () => getAccessToken(),
+    getValidToken: () => getValidToken(),
     setTokens: (access, refresh) => setTokens(access, refresh),
     clearTokens: () => clearTokens(),
 };

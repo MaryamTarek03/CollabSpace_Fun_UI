@@ -75,8 +75,23 @@ const useNotificationsStore = create((set, get) => ({
             const inviteService = get()._getInviteService();
             const notificationService = get()._getNotificationService();
 
+            let resolvedInviteId = inviteId;
+            if (inviteId) {
+                try {
+                    const pendingInvites = await inviteService.getByUser();
+                    const matchingInvite = (pendingInvites || []).find(
+                        inv => inv.spaceId === inviteId || inv.id === inviteId
+                    );
+                    if (matchingInvite) {
+                        resolvedInviteId = matchingInvite.id;
+                    }
+                } catch (e) {
+                    console.error('Failed to resolve invite ID:', e);
+                }
+            }
+
             await Promise.all([
-                inviteService.accept(inviteId),
+                inviteService.accept(resolvedInviteId),
                 notificationService.markRead(notificationId)
             ]);
 
@@ -99,8 +114,23 @@ const useNotificationsStore = create((set, get) => ({
             const inviteService = get()._getInviteService();
             const notificationService = get()._getNotificationService();
 
+            let resolvedInviteId = inviteId;
+            if (inviteId) {
+                try {
+                    const pendingInvites = await inviteService.getByUser();
+                    const matchingInvite = (pendingInvites || []).find(
+                        inv => inv.spaceId === inviteId || inv.id === inviteId
+                    );
+                    if (matchingInvite) {
+                        resolvedInviteId = matchingInvite.id;
+                    }
+                } catch (e) {
+                    console.error('Failed to resolve invite ID:', e);
+                }
+            }
+
             await Promise.all([
-                inviteService.decline(inviteId),
+                inviteService.decline(resolvedInviteId),
                 notificationService.markRead(notificationId)
             ]);
 

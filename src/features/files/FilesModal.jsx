@@ -180,7 +180,7 @@ export default function FilesModal() {
     const handleRenameFolder = async (folderId) => {
         if (!editFolderName.trim()) return;
         try {
-            await api.folders.update(folderId, editFolderName.trim());
+            await api.folders.update(folderId, editFolderName.trim(), activeSpace.id);
             setEditingFolderId(null);
             setEditFolderName('');
             // Refresh
@@ -198,7 +198,7 @@ export default function FilesModal() {
     const handleRenameFile = async (fileId) => {
         if (!editFileName.trim()) return;
         try {
-            await api.files.rename(fileId, editFileName.trim(), user.id);
+            await api.files.rename(fileId, editFileName.trim(), user.id, activeSpace.id);
             setEditingFileId(null);
             setEditFileName('');
             // Refresh
@@ -219,7 +219,7 @@ export default function FilesModal() {
             type: 'danger',
             onConfirm: async () => {
                 try {
-                    await api.folders.delete(folderId);
+                    await api.folders.delete(folderId, activeSpace.id);
                     // Refresh
                     const foldersData = await api.folders.getBySpace(activeSpace.id, currentFolderId);
                     setFolders(foldersData);
@@ -264,10 +264,10 @@ export default function FilesModal() {
         try {
             if (clipboard.mode === 'cut') {
                 // Cut = move files
-                await api.files.move(clipboard.files, currentFolderId, user.id);
+                await api.files.move(clipboard.files, currentFolderId, user.id, activeSpace.id);
             } else {
                 // Copy = duplicate files
-                await api.files.copy(clipboard.files, currentFolderId, user.id);
+                await api.files.copy(clipboard.files, currentFolderId, user.id, activeSpace.id);
             }
             // Clear clipboard after paste (for both modes)
             setClipboard({ files: [], mode: null });
@@ -303,7 +303,7 @@ export default function FilesModal() {
             onConfirm: async () => {
                 try {
                     for (const fileId of selectedFiles) {
-                        await api.files.delete(fileId, user.id);
+                        await api.files.delete(fileId, user.id, activeSpace.id);
                     }
                     clearSelection();
                     // Refresh
@@ -384,7 +384,8 @@ export default function FilesModal() {
 
     if (!isFilesModalOpen || !activeSpace) return null;
 
-    // Filter files
+    // Filter files and resolve uploader name
+    const members = activeSpace?.members || [];
     const filteredFiles = files.filter(f => {
         if (fileFilter === 'all') return true;
         if (fileFilter === 'owned') return f.uploadedBy === user?.id;
@@ -405,6 +406,15 @@ export default function FilesModal() {
             return ext === 'link';
         }
         return false;
+    }).map(f => {
+        if (f.uploaderName === 'Unknown' || !f.uploaderName) {
+            const uploaderId = f.uploadedBy;
+            const uploader = members.find(m => m.id === uploaderId);
+            if (uploader) {
+                return { ...f, uploaderName: uploader.name || uploader.username };
+            }
+        }
+        return f;
     });
 
     return (

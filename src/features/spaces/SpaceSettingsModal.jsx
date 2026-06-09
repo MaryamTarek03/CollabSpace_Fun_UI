@@ -2,22 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { X, Settings, Palette, Trash2, Save, AlertTriangle, Lock, Globe, Image, Upload, Ban, Loader } from 'lucide-react';
 import { useUIStore, useSpacesStore, useAuthStore } from '../../store';
 import api from '../../services/api';
-import { getImageUrl } from '../../shared/utils/helpers';
+import { getImageUrl, GRADIENT_OPTIONS } from '../../shared/utils/helpers';
 import ModalWrapper from '../../shared/components/ModalWrapper';
 import Button, { CloseButton } from '../../shared/components/Button';
 import Avatar from '../../shared/components/Avatar';
 import { ADMIN_ROLES } from '../../shared/constants';
-
-const GRADIENT_OPTIONS = [
-    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-    'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-    'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-    'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)',
-    'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
-    'linear-gradient(135deg, #667eea 0%, #f093fb 100%)',
-];
 
 const CATEGORY_OPTIONS = ['CREATIVE', 'TECH', 'EDUCATION', 'MEETING'];
 
@@ -80,7 +69,12 @@ export default function SpaceSettingsModal() {
             const reader = new FileReader();
             reader.onload = async () => {
                 const result = await api.spaces.uploadThumbnail(activeSpace.id, reader.result);
-                setFormData(prev => ({ ...prev, thumbnail: result.thumbnailImage }));
+                // Update Zustand store immediately so sidebar and headers update
+                useSpacesStore.setState(state => ({
+                    spaces: state.spaces.map(s => s.id === activeSpace.id ? result : s),
+                    activeSpace: result
+                }));
+                setFormData(prev => ({ ...prev, thumbnail: result.thumbnail }));
                 setIsUploadingImage(false);
                 setSaveMessage('Thumbnail updated!');
                 setTimeout(() => setSaveMessage(''), 3000);

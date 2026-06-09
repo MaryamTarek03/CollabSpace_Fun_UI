@@ -38,5 +38,6 @@ export function createInvite(data = {}) {
         respondedAt: data.respondedAt || null,
         expiresAt: data.expiresAt || null,
         time: data.time || '',
+        space: data.space || null,
     };
 }

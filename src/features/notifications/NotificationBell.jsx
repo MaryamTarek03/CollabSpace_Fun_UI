@@ -6,8 +6,8 @@ import NotificationsPanel from './NotificationsPanel';
 export default function NotificationBell({ className = '' }) {
     const [isOpen, setIsOpen] = useState(false);
     const triggerRef = React.useRef(null);
-    const { getUnreadCount } = useNotificationsStore();
-    const unreadCount = getUnreadCount();
+    const notifications = useNotificationsStore(state => state.notifications);
+    const unreadCount = notifications.filter(n => !n.read).length;
 
     return (
         <div className={`relative ${className}`}>

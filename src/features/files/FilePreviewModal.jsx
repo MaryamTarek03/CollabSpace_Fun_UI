@@ -59,7 +59,7 @@ export default function FilePreviewModal() {
             type: 'danger',
             onConfirm: async () => {
                 try {
-                    await api.files.delete(viewingFile.id, user?.id);
+                    await api.files.delete(viewingFile.id, user?.id, activeSpace?.id);
                     setViewingFile(null);
                     await useSpacesStore.getState().fetchSpaces();
                 } catch (err) {

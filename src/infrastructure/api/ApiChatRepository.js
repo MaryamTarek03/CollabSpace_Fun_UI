@@ -13,49 +13,78 @@ import { MessageMapper, ChannelMapper } from '../../domain/mappers/index.js';
 export function createApiChatRepository() {
     return {
         async getMessages(spaceId, channelId) {
-            const data = await httpClient.get(`/messages/${channelId}`);
-            return MessageMapper.fromApiList(data);
+            const data = await httpClient.get(`/spaces/${spaceId}/channels/${channelId}/messages`);
+            const messagesList = data && data.data ? data.data : (Array.isArray(data) ? data : []);
+            const reversed = [...messagesList].reverse();
+            return MessageMapper.fromApiList(reversed);
         },
 
         async sendMessage(spaceId, messageData) {
             const channelId = messageData.channelId || 'general';
-            const result = await httpClient.post(`/messages/${channelId}`, messageData);
+            const body = {
+                text: messageData.text || messageData.content || '',
+                parentId: messageData.parentId || null,
+                attachmentFileIds: messageData.attachmentFileIds || [],
+                attachmentUrls: messageData.attachmentUrls || []
+            };
+            const result = await httpClient.post(`/spaces/${spaceId}/channels/${channelId}/messages`, body);
             return MessageMapper.fromApi(result);
         },
 
         async deleteMessage(messageId, senderId) {
-            return httpClient.delete(`/messages/${messageId}`, { senderId });
+            const { useChatStore, useSpacesStore } = await import('../../store/index.js');
+            const spaceId = useChatStore.getState().activeChatSpace?.id || useSpacesStore.getState().activeSpace?.id || 'default';
+            const channelId = useChatStore.getState().activeChannel?.id || 'default';
+            return httpClient.delete(`/spaces/${spaceId}/channels/${channelId}/messages/${messageId}`);
         },
 
         async updateMessage(messageId, text, senderId) {
-            const result = await httpClient.put(`/messages/${messageId}`, { text, senderId });
+            const { useChatStore, useSpacesStore } = await import('../../store/index.js');
+            const spaceId = useChatStore.getState().activeChatSpace?.id || useSpacesStore.getState().activeSpace?.id || 'default';
+            const channelId = useChatStore.getState().activeChannel?.id || 'default';
+            const body = { text };
+            const result = await httpClient.put(`/spaces/${spaceId}/channels/${channelId}/messages/${messageId}`, body);
             return MessageMapper.fromApi(result);
         },
 
         async forwardMessage(messageId, targetChannelId, senderId, spaceId) {
-            return httpClient.post(`/messages/${messageId}/forward`, {
-                targetChannelId,
-                senderId,
-                spaceId
+            const { useChatStore, useSpacesStore } = await import('../../store/index.js');
+            const currentSpaceId = spaceId || useChatStore.getState().activeChatSpace?.id || useSpacesStore.getState().activeSpace?.id || 'default';
+            const sourceChannelId = useChatStore.getState().activeChannel?.id || 'default';
+            return httpClient.post(`/spaces/${currentSpaceId}/channels/${sourceChannelId}/messages/${messageId}/forward`, {
+                targetChannelId
             });
         },
 
         async getChannels(spaceId) {
-            const data = await httpClient.get(`/channels/${spaceId}`);
-            return ChannelMapper.fromApiList(data);
+            const data = await httpClient.get(`/spaces/${spaceId}/channels`);
+            const channelsList = data && data.data ? data.data : (Array.isArray(data) ? data : []);
+            return ChannelMapper.fromApiList(channelsList);
         },
 
         async createChannel(spaceId, channelData) {
-            const result = await httpClient.post(`/channels/${spaceId}`, channelData);
+            const body = {
+                name: channelData.name || '',
+                description: channelData.description || ''
+            };
+            const result = await httpClient.post(`/spaces/${spaceId}/channels`, body);
             return ChannelMapper.fromApi(result);
         },
 
         async updateChannel(channelId, data) {
-            return httpClient.put(`/channels/${channelId}`, data);
+            const { useChatStore, useSpacesStore } = await import('../../store/index.js');
+            const spaceId = useChatStore.getState().activeChatSpace?.id || useSpacesStore.getState().activeSpace?.id || 'default';
+            const body = {
+                name: data.name || '',
+                description: data.description || ''
+            };
+            return httpClient.put(`/spaces/${spaceId}/channels/${channelId}`, body);
         },
 
         async deleteChannel(channelId) {
-            return httpClient.delete(`/channels/${channelId}`);
+            const { useChatStore, useSpacesStore } = await import('../../store/index.js');
+            const spaceId = useChatStore.getState().activeChatSpace?.id || useSpacesStore.getState().activeSpace?.id || 'default';
+            return httpClient.delete(`/spaces/${spaceId}/channels/${channelId}`);
         },
     };
 }

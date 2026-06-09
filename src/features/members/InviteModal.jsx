@@ -58,7 +58,8 @@ export default function InviteModal() {
     const fetchLinks = async () => {
         setIsLoadingLinks(true);
         try {
-            const links = await api.get(`/spaces/${activeSpace.id}/invite-links`);
+            const res = await api.get(`/spaces/${activeSpace.id}/invites/codes`);
+            const links = res && res.data ? res.data : (Array.isArray(res) ? res : []);
             setActiveLinks(links);
         } catch (err) {
             console.error('Fetch links error:', err);
@@ -70,10 +71,21 @@ export default function InviteModal() {
     const handleGenerateLink = async () => {
         setIsGeneratingLink(true);
         try {
-            const newLink = await api.post(`/spaces/${activeSpace.id}/invite-links`, {
-                creatorId: user.id,
-                expiresAfter: expireAfter,
-                maxUses: maxUses ? parseInt(maxUses) : null
+            let expiresAt = null;
+            if (expireAfter) {
+                const now = new Date();
+                if (expireAfter === '30m') now.setMinutes(now.getMinutes() + 30);
+                else if (expireAfter === '1h') now.setHours(now.getHours() + 1);
+                else if (expireAfter === '6h') now.setHours(now.getHours() + 6);
+                else if (expireAfter === '12h') now.setHours(now.getHours() + 12);
+                else if (expireAfter === '1d') now.setDate(now.getDate() + 1);
+                else if (expireAfter === '7d') now.setDate(now.getDate() + 7);
+                expiresAt = now.toISOString();
+            }
+
+            const newLink = await api.post(`/spaces/${activeSpace.id}/invites/codes`, {
+                maxUses: maxUses ? parseInt(maxUses) : null,
+                expiresAt: expiresAt
             });
             setActiveLinks([newLink, ...activeLinks]);
             setShowLinkSettings(false);
@@ -87,7 +99,7 @@ export default function InviteModal() {
 
     const handleRevokeLink = async (linkId) => {
         try {
-            await api.delete(`/invite-links/${linkId}`);
+            await api.delete(`/spaces/${activeSpace.id}/invites/codes/${linkId}`);
             setActiveLinks(activeLinks.filter(l => l.id !== linkId));
         } catch (err) {
             console.error('Revoke link error:', err);

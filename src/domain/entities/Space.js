@@ -10,6 +10,7 @@
  * @property {string} description - Space description
  * @property {string} category - Space category
  * @property {string} ownerId - Owner user ID
+ * @property {string} ownerName - Owner display name
  * @property {string} thumbnail - Thumbnail URL or gradient
  * @property {string} thumbnailPosition - Thumbnail position
  * @property {string} visibility - 'public' or 'private'
@@ -30,8 +31,10 @@ export function createSpace(data = {}) {
         id: data.id || null,
         name: data.name || '',
         description: data.description || '',
-        category: data.category || data.type || 'General',
+        category: data.category || (data.type && isNaN(data.type) ? data.type : null) || 'General',
+        type: data.type !== undefined ? data.type : (data.spaceType !== undefined ? data.spaceType : null),
         ownerId: data.ownerId || null,
+        ownerName: data.ownerName || 'Unknown',
         thumbnail: data.thumbnail || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         thumbnailPosition: data.thumbnailPosition || data.thumbnailposition || '50% 50%',
         visibility: data.visibility || 'public',

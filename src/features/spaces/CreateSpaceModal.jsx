@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { X, ArrowLeft, Copy, Check, Send, UserPlus, Loader2, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, ArrowLeft, Copy, Check, Send, UserPlus, Loader2, AlertCircle, Upload } from 'lucide-react';
 import { useUIStore, useSpacesStore, useAuthStore } from '../../store';
-import { SPACE_TEMPLATES } from '../../data/mockData';
+import { SPACE_TEMPLATES, getTemplateIcon } from '../../data/spaceTemplates';
 import api from '../../services/api';
 import ModalWrapper from '../../shared/components/ModalWrapper';
 import Button, { CloseButton } from '../../shared/components/Button';
@@ -25,6 +25,35 @@ export default function CreateSpaceModal() {
     const [createdSpaceId, setCreatedSpaceId] = useState(null);
     const [isSendingInvites, setIsSendingInvites] = useState(false);
     const [inviteSent, setInviteSent] = useState(false);
+    const [selectedImageFile, setSelectedImageFile] = useState(null);
+    const [imagePreview, setImagePreview] = useState(null);
+
+    const handleImageChange = (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setSelectedImageFile(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImagePreview(reader.result);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleRemoveImage = () => {
+        setSelectedImageFile(null);
+        setImagePreview(null);
+    };
+
+    useEffect(() => {
+        if (!isCreateModalOpen) {
+            setSelectedImageFile(null);
+            setImagePreview(null);
+            setInviteEmail('');
+            setInviteEmails([]);
+            setCreatedSpaceId(null);
+        }
+    }, [isCreateModalOpen]);
 
     if (!isCreateModalOpen) return null;
 
@@ -37,20 +66,21 @@ export default function CreateSpaceModal() {
     };
 
     const handleAddInvite = async () => {
-        if (!inviteEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail)) return;
-        if (user && inviteEmail === user.email) {
+        const trimmed = inviteEmail.trim();
+        if (!trimmed) return;
+        if (user && (trimmed === user.email || trimmed === user.username)) {
             setAddError(true); setErrorMessage("You can't invite yourself!");
             setTimeout(() => { setAddError(false); setErrorMessage(''); }, 2000);
             return;
         }
-        if (inviteEmails.includes(inviteEmail)) {
-            setAddError(true); setErrorMessage("Already invited!");
+        if (inviteEmails.includes(trimmed)) {
+            setAddError(true); setErrorMessage("Already added!");
             setTimeout(() => { setAddError(false); setErrorMessage(''); }, 2000);
             return;
         }
         setIsAddingInvite(true);
-        await new Promise(resolve => setTimeout(resolve, 600));
-        setInviteEmails(prev => [...prev, inviteEmail]);
+        await new Promise(resolve => setTimeout(resolve, 300));
+        setInviteEmails(prev => [...prev, trimmed]);
         setInviteEmail('');
         setIsAddingInvite(false);
         setAddSuccess(true);
@@ -76,18 +106,46 @@ export default function CreateSpaceModal() {
     const handleConfirm = async (template) => {
         const spaceData = {
             name: newSpaceName,
-            thumbnail: template.gradient,
-            category: template.category,
             description: newSpaceDescription || "A brand new shiny space!",
-            ownerId: user?.id || null,
-            files: [],
-            members: [{ memberId: 'm1', userId: user?.id, name: user?.name || 'User', username: user?.username, role: 'Owner', avatarColor: user?.avatarColor || '#ec4899' }]
+            thumbnailColor: template.defaultColor || template.gradient,
+            spaceType: template.id || 1,
+            thumbnailImage: selectedImageFile
         };
         try {
             const newSpace = await createSpace(spaceData);
             if (newSpace?.id) {
                 setCreatedSpaceId(newSpace.id);
-                setCreatedSpaceLink(`https://collabspace.app/space/${Math.random().toString(36).substring(7)}`);
+
+                // Create default channels for the space template
+                if (template.defaultChannels && template.defaultChannels.length > 0) {
+                    try {
+                        await Promise.all(
+                            template.defaultChannels.map(c =>
+                                api.channels.create(newSpace.id, {
+                                    name: c.name,
+                                    description: c.description || `Default channel for ${template.name}`
+                                })
+                            )
+                        );
+                    } catch (channelErr) {
+                        console.error('Failed to create default channels:', channelErr);
+                    }
+                }
+                
+                let shareCode = newSpace.code || newSpace.inviteCode || newSpace.id;
+                try {
+                    const inviteRes = await api.post(`/spaces/${newSpace.id}/invites/codes`, {
+                        maxUses: null,
+                        expiresAt: null
+                    });
+                    if (inviteRes && inviteRes.code) {
+                        shareCode = inviteRes.code;
+                    }
+                } catch (codeErr) {
+                    console.error('Failed to auto-generate invite code:', codeErr);
+                }
+
+                setCreatedSpaceLink(`${window.location.origin}/invite/${shareCode}`);
                 setCreateStep(3);
             }
         } catch (err) {
@@ -118,13 +176,41 @@ export default function CreateSpaceModal() {
                                 <textarea value={newSpaceDescription} onChange={(e) => setNewSpaceDescription(e.target.value)} maxLength={200} className="w-full px-4 py-3 font-medium border-2 border-black rounded-xl focus:outline-none focus:ring-4 focus:ring-accent-300/50 h-24 resize-none" placeholder="What happens in this space?" />
                                 <p className="text-xs text-gray-400 mt-1 text-right">{newSpaceDescription.length}/200</p>
                             </div>
+                            <div>
+                                <label className="block text-sm font-bold text-gray-900 mb-2">Custom Thumbnail Image (Optional)</label>
+                                <div className="flex items-center gap-4">
+                                    <label className="flex flex-col items-center justify-center w-24 h-24 border-2 border-dashed border-black rounded-xl cursor-pointer hover:bg-gray-50 active:translate-y-0.5 transition-all bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                                        <div className="flex flex-col items-center justify-center pt-2 pb-2 text-center">
+                                            <Upload className="w-6 h-6 text-gray-500 mb-1" />
+                                            <span className="text-[10px] font-bold text-gray-600">Choose File</span>
+                                        </div>
+                                        <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                                    </label>
+                                    {imagePreview ? (
+                                        <div className="relative w-24 h-24 border-2 border-black rounded-xl overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
+                                            <img src={imagePreview} alt="Thumbnail Preview" className="w-full h-full object-cover" />
+                                            <button type="button" onClick={handleRemoveImage} className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full border border-black hover:bg-red-600 transition-colors shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]">
+                                                <X size={10} />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="text-xs text-gray-400 font-medium">No custom image chosen. (A default theme color will be used based on the vibe you select next).</div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                         <Button disabled={!newSpaceName.trim()} onClick={() => setCreateStep(2)} fullWidth className="mt-8 !bg-black !py-4 !text-lg">Next Step →</Button>
                     </div>
                     <div className="hidden md:flex w-1/2 bg-gradient-to-br from-white-400 to-accent-500 items-center justify-center relative border-l-4 border-black">
                         <div className="text-center p-8">
                             <div className="bg-white border-2 border-black rounded-2xl p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)] rotate-3 max-w-xs mx-auto">
-                                <div className="h-32 bg-gray-100 rounded-xl mb-4 flex items-center justify-center text-4xl">💙</div>
+                                <div className="h-32 bg-gray-100 rounded-xl mb-4 flex items-center justify-center text-4xl overflow-hidden border-2 border-black">
+                                    {imagePreview ? (
+                                        <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                                    ) : (
+                                        '💙'
+                                    )}
+                                </div>
                                 <div className="h-4 bg-gray-200 rounded-full w-3/4 mb-2" /><div className="h-4 bg-gray-200 rounded-full w-1/2" />
                             </div>
                             <p className="text-white font-bold mt-8 text-xl drop-shadow-md">Previewing: {newSpaceName || 'Untitled Space'}</p>
@@ -143,7 +229,7 @@ export default function CreateSpaceModal() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             {SPACE_TEMPLATES.map((t) => (
                                 <button key={t.id} onClick={() => handleConfirm(t)} className="group text-left border-2 border-black rounded-2xl p-4 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 transition-all bg-white">
-                                    <div className="h-32 rounded-xl mb-4 border-2 border-black flex items-center justify-center text-white" style={{ background: t.gradient }}>{t.icon}</div>
+                                    <div className="h-32 rounded-xl mb-4 border-2 border-black flex items-center justify-center text-white" style={{ background: t.gradient }}>{getTemplateIcon(t.iconName, 32)}</div>
                                     <h3 className="font-bold text-lg">{t.name}</h3>
                                     <span className="text-xs font-bold text-gray-400 uppercase">{t.category}</span>
                                 </button>
@@ -167,7 +253,7 @@ export default function CreateSpaceModal() {
                     {/* Invite Input */}
                     <div className="w-full max-w-md mb-6">
                         <div className="bg-white border-2 border-black rounded-xl p-2 flex items-center shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
-                            <input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddInvite()} placeholder="teammate@example.com" className="flex-1 px-4 text-sm font-mono focus:outline-none text-center" />
+                            <input type="text" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleAddInvite()} placeholder="username or email" className="flex-1 px-4 text-sm font-mono focus:outline-none text-center" />
                             <Button onClick={handleAddInvite} disabled={isAddingInvite || addSuccess || addError} variant={addSuccess ? 'success' : addError ? 'danger' : 'warning'} size="sm" icon={isAddingInvite ? <Loader2 className="animate-spin" /> : addSuccess ? <Check /> : addError ? <AlertCircle /> : <UserPlus />} />
                         </div>
                         {errorMessage && <div className="text-red-500 text-xs font-bold mt-2">{errorMessage}</div>}

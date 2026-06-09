@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bell, Check, X, User, MessageSquare, FileText, Zap, UserPlus } from 'lucide-react';
-import { useNotificationsStore, useSpacesStore } from '../../store';
+import { useNotificationsStore, useSpacesStore, useAuthStore } from '../../store';
 
 const NOTIFICATION_ICONS = {
     invite: UserPlus,
+    invite_response: UserPlus,
     mention: MessageSquare,
     session: Zap,
     file: FileText,
@@ -12,6 +13,7 @@ const NOTIFICATION_ICONS = {
 
 const NOTIFICATION_COLORS = {
     invite: 'bg-purple-100 text-purple-600',
+    invite_response: 'bg-purple-100 text-purple-600',
     mention: 'bg-blue-100 text-blue-600',
     session: 'bg-green-100 text-green-600',
     file: 'bg-accent-100 text-accent-600',
@@ -22,6 +24,19 @@ function NotificationItem({ notification, onAcceptInvite, onDeclineInvite, onMar
     const Icon = NOTIFICATION_ICONS[notification.type] || Bell;
     const colorClass = NOTIFICATION_COLORS[notification.type] || 'bg-gray-100 text-gray-600';
     const isInvite = notification.type === 'invite';
+
+    // Parse @{uuid} mentions in notification text
+    const parseMentions = (text) => {
+        if (!text) return '';
+        const currentUser = useAuthStore.getState().user;
+        const mentionRegex = /@\{([a-fA-F0-9-]+)\}/g;
+        return text.replace(mentionRegex, (match, userId) => {
+            if (currentUser && userId === currentUser.id) {
+                return `@${currentUser.displayName || currentUser.username || 'you'}`;
+            }
+            return '@user';
+        });
+    };
 
     return (
         <div
@@ -36,7 +51,7 @@ function NotificationItem({ notification, onAcceptInvite, onDeclineInvite, onMar
                 </div>
                 <div className="flex-1 min-w-0">
                     <p className="text-sm">
-                        <span className="text-gray-600">{notification.text}</span>{' '}
+                        <span className="text-gray-600">{parseMentions(notification.text)}</span>{' '}
                         <span className="font-bold text-pink-600">{notification.target}</span>
                     </p>
                     <p className="text-xs text-gray-400 mt-1">{notification.time}</p>
