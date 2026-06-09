@@ -11,62 +11,83 @@ export function useSignalRIntegration() {
     useEffect(() => {
         let isCancelled = false;
 
+        console.log("[SignalR Integration] Auth status changed, isAuthenticated:", isAuthenticated);
+
         if (isAuthenticated) {
             const connectSignalR = async () => {
-                const token = await httpClient.getValidToken();
-                if (isCancelled) return;
-                
-                if (token) {
-                    // Register handlers
-                    signalRService.registerHandlers({
-                        onMessageReceived: (msg) => {
-                            const mappedMsg = MessageMapper.fromApi(msg);
-                            const state = useChatStore.getState();
-                            // Add to chat store if current channel matches
-                            if (state.activeChannel && state.activeChannel.id === mappedMsg.channelId) {
-                                useChatStore.setState(prev => ({
-                                    messages: [...prev.messages.filter(m => m.id !== mappedMsg.id), mappedMsg]
+                console.log("[SignalR Integration] Fetching valid token...");
+                try {
+                    const token = await httpClient.getValidToken();
+                    console.log("[SignalR Integration] Token retrieval finished. Token present:", !!token);
+                    
+                    if (isCancelled) {
+                        console.log("[SignalR Integration] Connection cancelled before starting.");
+                        return;
+                    }
+                    
+                    if (token) {
+                        console.log("[SignalR Integration] Registering message handlers...");
+                        // Register handlers
+                        signalRService.registerHandlers({
+                            onMessageReceived: (msg) => {
+                                console.log("[SignalR Integration] Received message:", msg);
+                                const mappedMsg = MessageMapper.fromApi(msg);
+                                const state = useChatStore.getState();
+                                // Add to chat store if current channel matches
+                                if (state.activeChannel && state.activeChannel.id === mappedMsg.channelId) {
+                                    useChatStore.setState(prev => ({
+                                        messages: [...prev.messages.filter(m => m.id !== mappedMsg.id), mappedMsg]
+                                    }));
+                                }
+                            },
+                            onMessageEdited: (msg) => {
+                                console.log("[SignalR Integration] Message edited:", msg);
+                                const mappedMsg = MessageMapper.fromApi(msg);
+                                const state = useChatStore.getState();
+                                // Update in chat store if current channel matches
+                                if (state.activeChannel && state.activeChannel.id === mappedMsg.channelId) {
+                                    useChatStore.setState(prev => ({
+                                        messages: prev.messages.map(m => m.id === mappedMsg.id ? mappedMsg : m)
+                                    }));
+                                }
+                            },
+                            onMessageDeleted: (info) => {
+                                console.log("[SignalR Integration] Message deleted:", info);
+                                const state = useChatStore.getState();
+                                // Mark as deleted in chat store if current channel matches
+                                if (state.activeChannel && state.activeChannel.id === info.channelId) {
+                                    useChatStore.setState(prev => ({
+                                        messages: prev.messages.map(m => m.id === info.messageId ? {
+                                            ...m,
+                                            deletedAt: info.deletedAt || new Date().toISOString(),
+                                            deletedBy: info.deletedById
+                                        } : m)
+                                    }));
+                                }
+                            },
+                            onNotificationReceived: (notification) => {
+                                console.log("[SignalR Integration] Received notification:", notification);
+                                const mappedNotification = NotificationMapper.fromApi(notification);
+                                // Add to notifications store
+                                useNotificationsStore.setState(prev => ({
+                                    notifications: [mappedNotification, ...prev.notifications]
                                 }));
                             }
-                        },
-                        onMessageEdited: (msg) => {
-                            const mappedMsg = MessageMapper.fromApi(msg);
-                            const state = useChatStore.getState();
-                            // Update in chat store if current channel matches
-                            if (state.activeChannel && state.activeChannel.id === mappedMsg.channelId) {
-                                useChatStore.setState(prev => ({
-                                    messages: prev.messages.map(m => m.id === mappedMsg.id ? mappedMsg : m)
-                                }));
-                            }
-                        },
-                        onMessageDeleted: (info) => {
-                            const state = useChatStore.getState();
-                            // Mark as deleted in chat store if current channel matches
-                            if (state.activeChannel && state.activeChannel.id === info.channelId) {
-                                useChatStore.setState(prev => ({
-                                    messages: prev.messages.map(m => m.id === info.messageId ? {
-                                        ...m,
-                                        deletedAt: info.deletedAt || new Date().toISOString(),
-                                        deletedBy: info.deletedById
-                                    } : m)
-                                }));
-                            }
-                        },
-                        onNotificationReceived: (notification) => {
-                            const mappedNotification = NotificationMapper.fromApi(notification);
-                            // Add to notifications store
-                            useNotificationsStore.setState(prev => ({
-                                notifications: [mappedNotification, ...prev.notifications]
-                            }));
-                        }
-                    });
+                        });
 
-                    signalRService.start(token);
+                        console.log("[SignalR Integration] Starting SignalR service...");
+                        signalRService.start(token);
+                    } else {
+                        console.warn("[SignalR Integration] No valid token found, cannot start connection.");
+                    }
+                } catch (err) {
+                    console.error("[SignalR Integration] Error in connectSignalR process:", err);
                 }
             };
 
             connectSignalR();
         } else {
+            console.log("[SignalR Integration] User not authenticated. Stopping SignalR service...");
             signalRService.stop();
         }
 

@@ -34,12 +34,16 @@ import JoinSessionModal from './features/session/JoinSessionModal';
 
 import { JoinByLinkModal } from './features/spaces/JoinByLinkModal';
 import UserProfileModal from './features/profile/UserProfileModal';
+import { useSignalRIntegration } from './hooks/useSignalRIntegration';
 
 /**
  * AppLayout - Main layout wrapper for authenticated routes
  * Contains sidebar, modals, and renders child routes via Outlet
  */
 export default function AppLayout() {
+    // Activate SignalR integration
+    useSignalRIntegration();
+
     const { user } = useAuthStore();
     const { loading: spacesLoading, error: spacesError, fetchSpaces, fetchFavorites } = useSpacesStore();
     const { initTheme, viewingProfileId, closeProfileModal } = useUIStore();
