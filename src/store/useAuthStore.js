@@ -77,7 +77,8 @@ const useAuthStore = create((set, get) => ({
 
         try {
             const userService = get()._getUserService();
-            const updatedUser = await userService.update(user.id, profileData);
+            await userService.update(user.id, profileData);
+            const updatedUser = await userService.getById(user.id);
             set({ user: updatedUser });
             localStorage.setItem('user', JSON.stringify(updatedUser));
             return updatedUser;
@@ -93,7 +94,12 @@ const useAuthStore = create((set, get) => ({
 
         try {
             const userService = get()._getUserService();
-            const updatedUser = await userService.uploadAvatar(user.id, imageData);
+            await userService.uploadAvatar(user.id, imageData);
+            const updatedUser = await userService.getById(user.id);
+            if (updatedUser && updatedUser.avatarImage) {
+                const separator = updatedUser.avatarImage.includes('?') ? '&' : '?';
+                updatedUser.avatarImage = `${updatedUser.avatarImage}${separator}t=${new Date().getTime()}`;
+            }
             set({ user: updatedUser });
             localStorage.setItem('user', JSON.stringify(updatedUser));
             return updatedUser;
@@ -108,7 +114,8 @@ const useAuthStore = create((set, get) => ({
 
         try {
             const userService = get()._getUserService();
-            const updatedUser = await userService.deleteAvatar(user.id);
+            await userService.deleteAvatar(user.id);
+            const updatedUser = await userService.getById(user.id);
             set({ user: updatedUser });
             localStorage.setItem('user', JSON.stringify(updatedUser));
             return updatedUser;

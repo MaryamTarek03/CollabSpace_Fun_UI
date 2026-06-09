@@ -96,7 +96,7 @@ function Toggle({ checked, onChange }) {
 
 export default function SettingsModal() {
     const { isSettingsModalOpen, closeSettingsModal, settingsTab, setSettingsTab, themeColor } = useUIStore();
-    const { user, logout, updateProfile } = useAuthStore();
+    const { user, logout, updateProfile, uploadAvatar, deleteAvatar } = useAuthStore();
     const { fetchSpaces } = useSpacesStore();
 
     const [profileData, setProfileData] = useState({ name: '', username: '', bio: '' });
@@ -229,11 +229,7 @@ export default function SettingsModal() {
         setCropperImage(null);
         setIsUploadingAvatar(true);
         try {
-            const updated = await api.users.uploadAvatar(user.id, croppedImageData);
-            const stored = JSON.parse(localStorage.getItem('collabspace_user') || '{}');
-            stored.avatarImage = updated.avatarImage;
-            localStorage.setItem('collabspace_user', JSON.stringify(stored));
-            setTimeout(() => window.location.reload(), 500);
+            await uploadAvatar(croppedImageData);
         } catch { setUploadError('Upload failed'); }
         finally { setIsUploadingAvatar(false); }
     };
@@ -242,11 +238,7 @@ export default function SettingsModal() {
         if (!user?.id) return;
         setIsUploadingAvatar(true);
         try {
-            await api.users.deleteAvatar(user.id);
-            const stored = JSON.parse(localStorage.getItem('collabspace_user') || '{}');
-            stored.avatarImage = null;
-            localStorage.setItem('collabspace_user', JSON.stringify(stored));
-            window.location.reload();
+            await deleteAvatar();
         } catch { }
         finally { setIsUploadingAvatar(false); }
     };
