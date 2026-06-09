@@ -4,6 +4,7 @@ import { RouterProvider } from 'react-router-dom'
 import './index.css'
 import { router } from './router.jsx'
 import { useAuthStore } from './store'
+import { ServiceProvider } from './infrastructure/di'
 
 // Initialize auth on app load
 function AppWithAuth() {
@@ -18,7 +19,10 @@ function AppWithAuth() {
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <AppWithAuth />
+    <ServiceProvider>
+      <AppWithAuth />
+    </ServiceProvider>
   </StrictMode>,
 )
+
 

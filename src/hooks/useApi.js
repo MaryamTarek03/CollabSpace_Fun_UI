@@ -1,53 +1,54 @@
+/**
+ * API Hooks - Refactored
+ * Custom React hooks for data fetching using DI container services
+ * 
+ * These hooks provide a convenient way to use services in React components
+ * while maintaining proper separation of concerns.
+ */
+
 import { useState, useEffect, useCallback } from 'react';
-import api from '../services/api';
-import { Space, Message, SpaceMember, SpaceFile, Notification } from '../models';
+import { getContainer } from '../infrastructure/di/container.js';
 
 // ============ SPACES HOOK ============
-export function useSpaces() {
+export function useSpaces(userId) {
     const [spaces, setSpaces] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
+    const spaceService = getContainer().services.space;
+
     const fetchSpaces = useCallback(async () => {
         try {
             setLoading(true);
-            const data = await api.spaces.getAll();
-            setSpaces(Space.fromApiList(data));
+            const data = await spaceService.getAll(userId);
+            setSpaces(data);
             setError(null);
         } catch (err) {
             setError(err.message);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [userId, spaceService]);
 
     useEffect(() => {
         fetchSpaces();
     }, [fetchSpaces]);
 
     const createSpace = async (spaceData) => {
-        const newSpace = await api.spaces.create(spaceData);
-        const spaceModel = Space.fromApi(newSpace);
-        setSpaces(prev => [...prev, spaceModel]);
-        return spaceModel;
+        const newSpace = await spaceService.create(spaceData);
+        setSpaces(prev => [...prev, newSpace]);
+        return newSpace;
     };
 
     const updateSpace = async (id, data) => {
-        const updated = await api.spaces.update(id, data);
-        const spaceModel = Space.fromApi(updated);
-        setSpaces(prev => prev.map(s => s.id === id ? spaceModel : s));
-        return spaceModel;
+        const updated = await spaceService.update(id, data);
+        setSpaces(prev => prev.map(s => s.id === id ? updated : s));
+        return updated;
     };
 
     const deleteSpace = async (id) => {
-        await api.spaces.delete(id);
+        await spaceService.delete(id);
         setSpaces(prev => prev.filter(s => s.id !== id));
-    };
-
-    const toggleFavorite = (id) => {
-        setSpaces(prev => prev.map(s =>
-            s.id === id ? { ...s, isFavorite: !s.isFavorite } : s
-        ));
     };
 
     return {
@@ -58,7 +59,6 @@ export function useSpaces() {
         createSpace,
         updateSpace,
         deleteSpace,
-        toggleFavorite,
         setSpaces
     };
 }
@@ -69,37 +69,47 @@ export function useSpaceMembers(spaceId) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
+    const memberService = getContainer().services.member;
+
     const fetchMembers = useCallback(async () => {
         if (!spaceId) return;
         try {
             setLoading(true);
-            const data = await api.members.getBySpace(spaceId);
-            setMembers(SpaceMember.fromApiList(data));
+            const data = await memberService.getBySpace(spaceId);
+            setMembers(data);
             setError(null);
         } catch (err) {
             setError(err.message);
         } finally {
             setLoading(false);
         }
-    }, [spaceId]);
+    }, [spaceId, memberService]);
 
     useEffect(() => {
         fetchMembers();
     }, [fetchMembers]);
 
     const updateRole = async (memberId, role) => {
-        const updated = await api.members.updateRole(spaceId, memberId, role);
+        await memberService.updateRole(spaceId, memberId, role);
         setMembers(prev => prev.map(m => m.memberId === memberId ? { ...m, role } : m));
-        return updated;
     };
 
     const removeMember = async (memberId) => {
-        await api.members.remove(spaceId, memberId);
+        await memberService.remove(spaceId, memberId);
+        setMembers(prev => prev.filter(m => m.memberId !== memberId));
+    };
+
+    const banMember = async (memberId, bannedBy, reason) => {
+        await memberService.ban(spaceId, memberId, bannedBy, reason);
         setMembers(prev => prev.filter(m => m.memberId !== memberId));
     };
 
     const inviteMembers = async (emails, inviterName, inviterId) => {
-        return await api.members.invite(spaceId, { emails, inviterName, inviterId });
+        return await memberService.invite(spaceId, { emails, inviterName, inviterId });
+    };
+
+    const inviteUser = async (userId, inviterId) => {
+        return await memberService.inviteUser(spaceId, userId, inviterId);
     };
 
     return {
@@ -109,39 +119,60 @@ export function useSpaceMembers(spaceId) {
         refetch: fetchMembers,
         updateRole,
         removeMember,
-        inviteMembers
+        banMember,
+        inviteMembers,
+        inviteUser
     };
 }
 
 // ============ MESSAGES HOOK ============
-export function useMessages(spaceId) {
+export function useMessages(spaceId, channelId) {
     const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
+    const chatService = getContainer().services.chat;
+
     const fetchMessages = useCallback(async () => {
-        if (!spaceId) return;
+        if (!channelId) return;
         try {
             setLoading(true);
-            const data = await api.messages.getBySpace(spaceId);
-            setMessages(Message.fromApiList(data));
+            const data = await chatService.getMessages(spaceId, channelId);
+            setMessages(data);
             setError(null);
         } catch (err) {
             setError(err.message);
         } finally {
             setLoading(false);
         }
-    }, [spaceId]);
+    }, [spaceId, channelId, chatService]);
 
     useEffect(() => {
         fetchMessages();
     }, [fetchMessages]);
 
     const sendMessage = async (messageData) => {
-        const newMessage = await api.messages.send(spaceId, messageData);
-        const msgModel = Message.fromApi(newMessage);
-        setMessages(prev => [...prev, msgModel]);
-        return msgModel;
+        const newMessage = await chatService.sendMessage(spaceId, {
+            ...messageData,
+            channelId
+        });
+        setMessages(prev => [...prev, newMessage]);
+        return newMessage;
+    };
+
+    const deleteMessage = async (messageId, senderId) => {
+        await chatService.deleteMessage(messageId, senderId);
+        setMessages(prev => prev.map(m =>
+            m.id === messageId
+                ? { ...m, deletedAt: new Date().toISOString(), deletedBy: senderId }
+                : m
+        ));
+    };
+
+    const updateMessage = async (messageId, text, senderId) => {
+        const updated = await chatService.updateMessage(messageId, text, senderId);
+        setMessages(prev => prev.map(m => m.id === messageId ? updated : m));
+        return updated;
     };
 
     return {
@@ -149,38 +180,110 @@ export function useMessages(spaceId) {
         loading,
         error,
         refetch: fetchMessages,
-        sendMessage
+        sendMessage,
+        deleteMessage,
+        updateMessage
     };
 }
 
-// ============ FILES HOOK ============
-export function useSpaceFiles(spaceId) {
-    const [files, setFiles] = useState([]);
+// ============ CHANNELS HOOK ============
+export function useChannels(spaceId) {
+    const [channels, setChannels] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    const fetchFiles = useCallback(async () => {
+    const chatService = getContainer().services.chat;
+
+    const fetchChannels = useCallback(async () => {
         if (!spaceId) return;
         try {
             setLoading(true);
-            const data = await api.files.getBySpace(spaceId);
-            setFiles(SpaceFile.fromApiList(data));
+            const data = await chatService.getChannels(spaceId);
+            setChannels(data);
             setError(null);
         } catch (err) {
             setError(err.message);
         } finally {
             setLoading(false);
         }
-    }, [spaceId]);
+    }, [spaceId, chatService]);
+
+    useEffect(() => {
+        fetchChannels();
+    }, [fetchChannels]);
+
+    const createChannel = async (name, description, createdBy) => {
+        const newChannel = await chatService.createChannel(spaceId, { name, description, createdBy });
+        setChannels(prev => [...prev, newChannel]);
+        return newChannel;
+    };
+
+    const updateChannel = async (channelId, data) => {
+        const updated = await chatService.updateChannel(channelId, data);
+        setChannels(prev => prev.map(c => c.id === channelId ? { ...c, ...data } : c));
+        return updated;
+    };
+
+    const deleteChannel = async (channelId) => {
+        await chatService.deleteChannel(channelId);
+        setChannels(prev => prev.filter(c => c.id !== channelId));
+    };
+
+    return {
+        channels,
+        loading,
+        error,
+        refetch: fetchChannels,
+        createChannel,
+        updateChannel,
+        deleteChannel
+    };
+}
+
+// ============ FILES HOOK ============
+export function useSpaceFiles(spaceId, folderId = null) {
+    const [files, setFiles] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    const fileService = getContainer().services.file;
+
+    const fetchFiles = useCallback(async () => {
+        if (!spaceId) return;
+        try {
+            setLoading(true);
+            const data = await fileService.getBySpace(spaceId, folderId);
+            setFiles(data);
+            setError(null);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    }, [spaceId, folderId, fileService]);
 
     useEffect(() => {
         fetchFiles();
     }, [fetchFiles]);
 
-    const uploadFile = async (fileData) => {
-        const newFile = await api.files.upload(spaceId, fileData);
+    const uploadFile = async (file, uploadedBy, onProgress) => {
+        const newFile = await fileService.upload(spaceId, file, uploadedBy, onProgress, folderId);
         setFiles(prev => [newFile, ...prev]);
         return newFile;
+    };
+
+    const deleteFile = async (fileId, userId) => {
+        await fileService.delete(fileId, userId);
+        setFiles(prev => prev.filter(f => f.id !== fileId));
+    };
+
+    const renameFile = async (fileId, name, userId) => {
+        await fileService.rename(fileId, name, userId);
+        setFiles(prev => prev.map(f => f.id === fileId ? { ...f, name } : f));
+    };
+
+    const getDownloadUrl = (fileId) => {
+        return fileService.getDownloadUrl(fileId);
     };
 
     return {
@@ -188,7 +291,63 @@ export function useSpaceFiles(spaceId) {
         loading,
         error,
         refetch: fetchFiles,
-        uploadFile
+        uploadFile,
+        deleteFile,
+        renameFile,
+        getDownloadUrl
+    };
+}
+
+// ============ FOLDERS HOOK ============
+export function useFolders(spaceId, parentId = null) {
+    const [folders, setFolders] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    const fileService = getContainer().services.file;
+
+    const fetchFolders = useCallback(async () => {
+        if (!spaceId) return;
+        try {
+            setLoading(true);
+            const data = await fileService.getFolders(spaceId, parentId);
+            setFolders(data);
+            setError(null);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    }, [spaceId, parentId, fileService]);
+
+    useEffect(() => {
+        fetchFolders();
+    }, [fetchFolders]);
+
+    const createFolder = async (name, createdBy) => {
+        const newFolder = await fileService.createFolder(spaceId, { name, parentId, createdBy });
+        setFolders(prev => [...prev, newFolder]);
+        return newFolder;
+    };
+
+    const deleteFolder = async (folderId) => {
+        await fileService.deleteFolder(folderId);
+        setFolders(prev => prev.filter(f => f.id !== folderId));
+    };
+
+    const renameFolder = async (folderId, name) => {
+        await fileService.updateFolder(folderId, name);
+        setFolders(prev => prev.map(f => f.id === folderId ? { ...f, name } : f));
+    };
+
+    return {
+        folders,
+        loading,
+        error,
+        refetch: fetchFolders,
+        createFolder,
+        deleteFolder,
+        renameFolder
     };
 }
 
@@ -198,31 +357,33 @@ export function useNotifications(userId) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
+    const notificationService = getContainer().services.notification;
+
     const fetchNotifications = useCallback(async () => {
         if (!userId) return;
         try {
             setLoading(true);
-            const data = await api.notifications.getAll(userId);
-            setNotifications(Notification.fromApiList(data));
+            const data = await notificationService.getByUser(userId);
+            setNotifications(data);
             setError(null);
         } catch (err) {
             setError(err.message);
         } finally {
             setLoading(false);
         }
-    }, [userId]);
+    }, [userId, notificationService]);
 
     useEffect(() => {
         fetchNotifications();
     }, [fetchNotifications]);
 
     const markRead = async (id) => {
-        await api.notifications.markRead(id);
+        await notificationService.markRead(id);
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
     };
 
     const markAllRead = async () => {
-        await api.notifications.markAllRead();
+        await notificationService.markAllRead(userId);
         setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     };
 
@@ -239,22 +400,111 @@ export function useNotifications(userId) {
     };
 }
 
+// ============ INVITES HOOK ============
+export function useInvites(spaceId) {
+    const [invites, setInvites] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    const inviteService = getContainer().services.invite;
+
+    const fetchInvites = useCallback(async () => {
+        if (!spaceId) return;
+        try {
+            setLoading(true);
+            const data = await inviteService.getBySpace(spaceId);
+            setInvites(data);
+            setError(null);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    }, [spaceId, inviteService]);
+
+    useEffect(() => {
+        fetchInvites();
+    }, [fetchInvites]);
+
+    const revokeInvite = async (inviteId) => {
+        await inviteService.revoke(inviteId);
+        setInvites(prev => prev.filter(i => i.id !== inviteId));
+    };
+
+    return {
+        invites,
+        loading,
+        error,
+        refetch: fetchInvites,
+        revokeInvite
+    };
+}
+
+// ============ USER INVITES HOOK ============
+export function useUserInvites(userId) {
+    const [invites, setInvites] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    const inviteService = getContainer().services.invite;
+
+    const fetchInvites = useCallback(async () => {
+        if (!userId) return;
+        try {
+            setLoading(true);
+            const data = await inviteService.getByUser(userId);
+            setInvites(data);
+            setError(null);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    }, [userId, inviteService]);
+
+    useEffect(() => {
+        fetchInvites();
+    }, [fetchInvites]);
+
+    const acceptInvite = async (inviteId) => {
+        await inviteService.accept(inviteId);
+        setInvites(prev => prev.filter(i => i.id !== inviteId));
+    };
+
+    const declineInvite = async (inviteId) => {
+        await inviteService.decline(inviteId);
+        setInvites(prev => prev.filter(i => i.id !== inviteId));
+    };
+
+    return {
+        invites,
+        loading,
+        error,
+        refetch: fetchInvites,
+        acceptInvite,
+        declineInvite
+    };
+}
+
 // ============ AUTH HOOK ============
 export function useAuth() {
     const [user, setUser] = useState(() => {
-        const stored = localStorage.getItem('collabspace_user');
+        const stored = localStorage.getItem('user');
         return stored ? JSON.parse(stored) : null;
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    const login = async (email, password) => {
+    const authService = getContainer().services.auth;
+    const userService = getContainer().services.user;
+
+    const login = async (identifier, password) => {
         try {
             setLoading(true);
             setError(null);
-            const userData = await api.auth.login({ email, password });
+            const userData = await authService.login(identifier, password);
             setUser(userData);
-            localStorage.setItem('collabspace_user', JSON.stringify(userData));
+            localStorage.setItem('user', JSON.stringify(userData));
             return userData;
         } catch (err) {
             setError(err.message);
@@ -268,9 +518,9 @@ export function useAuth() {
         try {
             setLoading(true);
             setError(null);
-            const userData = await api.auth.register({ name, username, email, password });
+            const userData = await authService.register({ name, username, email, password });
             setUser(userData);
-            localStorage.setItem('collabspace_user', JSON.stringify(userData));
+            localStorage.setItem('user', JSON.stringify(userData));
             return userData;
         } catch (err) {
             setError(err.message);
@@ -282,14 +532,30 @@ export function useAuth() {
 
     const logout = () => {
         setUser(null);
-        localStorage.removeItem('collabspace_user');
+        localStorage.removeItem('user');
     };
 
     const updateProfile = async (data) => {
         if (!user) return;
-        const updated = await api.users.update(user.id, data);
+        const updated = await userService.update(user.id, data);
         setUser(updated);
-        localStorage.setItem('collabspace_user', JSON.stringify(updated));
+        localStorage.setItem('user', JSON.stringify(updated));
+        return updated;
+    };
+
+    const uploadAvatar = async (imageData) => {
+        if (!user) return;
+        const updated = await userService.uploadAvatar(user.id, imageData);
+        setUser(updated);
+        localStorage.setItem('user', JSON.stringify(updated));
+        return updated;
+    };
+
+    const deleteAvatar = async () => {
+        if (!user) return;
+        const updated = await userService.deleteAvatar(user.id);
+        setUser(updated);
+        localStorage.setItem('user', JSON.stringify(updated));
         return updated;
     };
 
@@ -301,6 +567,79 @@ export function useAuth() {
         login,
         register,
         logout,
-        updateProfile
+        updateProfile,
+        uploadAvatar,
+        deleteAvatar
+    };
+}
+
+// ============ USER PROFILE HOOK ============
+export function useUserProfile(userId, viewerId) {
+    const [profile, setProfile] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    const userService = getContainer().services.user;
+
+    const fetchProfile = useCallback(async () => {
+        if (!userId || !viewerId) return;
+        try {
+            setLoading(true);
+            const data = await userService.getProfile(userId, viewerId);
+            setProfile(data);
+            setError(null);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    }, [userId, viewerId, userService]);
+
+    useEffect(() => {
+        fetchProfile();
+    }, [fetchProfile]);
+
+    return {
+        profile,
+        loading,
+        error,
+        refetch: fetchProfile
+    };
+}
+
+// ============ USER SEARCH HOOK ============
+export function useUserSearch() {
+    const [results, setResults] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    const userService = getContainer().services.user;
+
+    const search = async (query, viewerId) => {
+        if (!query || query.length < 2) {
+            setResults([]);
+            return [];
+        }
+
+        try {
+            setLoading(true);
+            const data = await userService.search(query, viewerId);
+            setResults(data);
+            return data;
+        } catch (err) {
+            console.error('Search failed:', err);
+            setResults([]);
+            return [];
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const clearResults = () => setResults([]);
+
+    return {
+        results,
+        loading,
+        search,
+        clearResults
     };
 }

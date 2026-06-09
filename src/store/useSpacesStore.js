@@ -1,11 +1,15 @@
 import { create } from 'zustand';
-import api from '../services/api';
-import { Space } from '../models';
+import { getContainer } from '../infrastructure/di/container.js';
 import useAuthStore from './useAuthStore';
 
 /**
- * Spaces Store
- * Manages spaces, active space, favorites, and filters
+ * Spaces Store - Refactored
+ * Uses DI container services instead of direct API calls
+ * 
+ * Design Patterns Applied:
+ * - Dependency Injection: Services injected via container
+ * - Observer Pattern: Zustand provides reactive state
+ * - Facade Pattern: Store provides simplified interface to space operations
  */
 const useSpacesStore = create((set, get) => ({
     // State
@@ -23,20 +27,22 @@ const useSpacesStore = create((set, get) => ({
     viewMode: 'grid',
     sortOption: 'newest',
 
+    // Get services from DI container
+    _getSpaceService: () => getContainer().services.space,
+    _getUserService: () => getContainer().services.user,
+
     // Actions
     setActiveSpace: (space) => set({ activeSpace: space }),
     clearActiveSpace: () => set({ activeSpace: null }),
     setSortOption: (sortOption) => set({ sortOption }),
-
-
 
     // Fetch all spaces
     fetchSpaces: async () => {
         set({ loading: true, error: null });
         try {
             const user = useAuthStore.getState().user;
-            const data = await api.spaces.getAll(user?.id);
-            const spaces = Space.fromApiList(data);
+            const spaceService = get()._getSpaceService();
+            const spaces = await spaceService.getAll(user?.id);
             set({ spaces, loading: false });
             return spaces;
         } catch (err) {
@@ -48,10 +54,10 @@ const useSpacesStore = create((set, get) => ({
     // Create a new space
     createSpace: async (spaceData) => {
         try {
-            const newSpace = await api.spaces.create(spaceData);
-            const spaceModel = Space.fromApi(newSpace);
-            set((state) => ({ spaces: [...state.spaces, spaceModel] }));
-            return spaceModel;
+            const spaceService = get()._getSpaceService();
+            const newSpace = await spaceService.create(spaceData);
+            set((state) => ({ spaces: [...state.spaces, newSpace] }));
+            return newSpace;
         } catch (err) {
             throw err;
         }
@@ -60,10 +66,11 @@ const useSpacesStore = create((set, get) => ({
     // Update a space
     updateSpace: async (spaceId, updates) => {
         try {
-            const updated = await api.spaces.update(spaceId, updates);
+            const spaceService = get()._getSpaceService();
+            const updated = await spaceService.update(spaceId, updates);
             set((state) => ({
-                spaces: state.spaces.map(s => s.id === spaceId ? Space.fromApi(updated) : s),
-                activeSpace: state.activeSpace?.id === spaceId ? Space.fromApi(updated) : state.activeSpace
+                spaces: state.spaces.map(s => s.id === spaceId ? updated : s),
+                activeSpace: state.activeSpace?.id === spaceId ? updated : state.activeSpace
             }));
             return updated;
         } catch (err) {
@@ -74,7 +81,8 @@ const useSpacesStore = create((set, get) => ({
     // Delete a space
     deleteSpace: async (spaceId) => {
         try {
-            await api.spaces.delete(spaceId);
+            const spaceService = get()._getSpaceService();
+            await spaceService.delete(spaceId);
             set((state) => ({
                 spaces: state.spaces.filter(s => s.id !== spaceId),
                 activeSpace: state.activeSpace?.id === spaceId ? null : state.activeSpace
@@ -87,7 +95,8 @@ const useSpacesStore = create((set, get) => ({
     // Favorites
     fetchFavorites: async (userId) => {
         try {
-            const favs = await api.users.getFavorites(userId);
+            const userService = get()._getUserService();
+            const favs = await userService.getFavorites(userId);
             set({ userFavorites: favs });
         } catch (err) {
             console.log('Could not fetch favorites');
@@ -96,7 +105,8 @@ const useSpacesStore = create((set, get) => ({
 
     toggleFavorite: async (userId, spaceId) => {
         try {
-            const result = await api.users.toggleFavorite(userId, spaceId);
+            const userService = get()._getUserService();
+            const result = await userService.toggleFavorite(userId, spaceId);
             set((state) => ({
                 userFavorites: result.isFavorite
                     ? [...state.userFavorites, spaceId]
@@ -118,7 +128,8 @@ const useSpacesStore = create((set, get) => ({
         try {
             const user = useAuthStore.getState().user;
             if (!user) throw new Error('Must be logged in');
-            return await api.spaces.join(spaceId, user.id);
+            const spaceService = get()._getSpaceService();
+            return await spaceService.join(spaceId, user.id);
         } catch (err) {
             throw err;
         }
@@ -126,7 +137,8 @@ const useSpacesStore = create((set, get) => ({
 
     fetchSpaceRequests: async (spaceId) => {
         try {
-            return await api.spaces.getRequests(spaceId);
+            const spaceService = get()._getSpaceService();
+            return await spaceService.getRequests(spaceId);
         } catch (err) {
             console.error('Failed to fetch requests', err);
             return [];
@@ -135,13 +147,8 @@ const useSpacesStore = create((set, get) => ({
 
     approveRequest: async (spaceId, requestId) => {
         try {
-            await api.spaces.approveRequest(spaceId, requestId);
-            // If active space is the one we approved for, refresh it to update member list
-            const { activeSpace, updateSpace } = get();
-            if (activeSpace?.id === spaceId) {
-                // Ideally trigger a refresh of members here
-                // For now, we rely on the component to refresh members
-            }
+            const spaceService = get()._getSpaceService();
+            await spaceService.approveRequest(spaceId, requestId);
         } catch (err) {
             throw err;
         }
@@ -149,7 +156,8 @@ const useSpacesStore = create((set, get) => ({
 
     rejectRequest: async (spaceId, requestId) => {
         try {
-            await api.spaces.rejectRequest(spaceId, requestId);
+            const spaceService = get()._getSpaceService();
+            await spaceService.rejectRequest(spaceId, requestId);
         } catch (err) {
             throw err;
         }
@@ -157,7 +165,8 @@ const useSpacesStore = create((set, get) => ({
 
     transferOwnership: async (spaceId, currentOwnerId, newOwnerId) => {
         try {
-            await api.spaces.transferOwnership(spaceId, currentOwnerId, newOwnerId);
+            const spaceService = get()._getSpaceService();
+            await spaceService.transferOwnership(spaceId, currentOwnerId, newOwnerId);
             // Optimistic update of active space
             set(state => {
                 if (state.activeSpace?.id === spaceId) {

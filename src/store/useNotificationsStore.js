@@ -1,16 +1,24 @@
 import { create } from 'zustand';
-import api from '../services/api';
-import { Notification } from '../models';
+import { getContainer } from '../infrastructure/di/container.js';
 
 /**
- * Notifications Store
- * Manages notifications and invite responses
+ * Notifications Store - Refactored
+ * Uses DI container services instead of direct API calls
+ * 
+ * Design Patterns Applied:
+ * - Dependency Injection: Services injected via container
+ * - Observer Pattern: Zustand provides reactive state
+ * - Facade Pattern: Store provides simplified interface to notification operations
  */
 const useNotificationsStore = create((set, get) => ({
     // State
     notifications: [],
     loading: false,
     error: null,
+
+    // Get services from DI container
+    _getNotificationService: () => getContainer().services.notification,
+    _getInviteService: () => getContainer().services.invite,
 
     // Computed - unread count
     getUnreadCount: () => {
@@ -21,9 +29,8 @@ const useNotificationsStore = create((set, get) => ({
     fetchNotifications: async (userId) => {
         set({ loading: true, error: null });
         try {
-            const data = await api.notifications.getAll(userId);
-            // Convert to model instances (which calculates time)
-            const notifications = Notification.fromApiList(data);
+            const notificationService = get()._getNotificationService();
+            const notifications = await notificationService.getByUser(userId);
             // Sort by date, newest first
             const sorted = notifications.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             set({ notifications: sorted, loading: false });
@@ -37,7 +44,8 @@ const useNotificationsStore = create((set, get) => ({
     // Mark single notification as read
     markAsRead: async (id) => {
         try {
-            await api.notifications.markRead(id);
+            const notificationService = get()._getNotificationService();
+            await notificationService.markRead(id);
             set((state) => ({
                 notifications: state.notifications.map(n =>
                     n.id === id ? { ...n, read: true } : n
@@ -51,7 +59,8 @@ const useNotificationsStore = create((set, get) => ({
     // Mark all as read
     markAllAsRead: async () => {
         try {
-            await api.notifications.markAllRead();
+            const notificationService = get()._getNotificationService();
+            await notificationService.markAllRead();
             set((state) => ({
                 notifications: state.notifications.map(n => ({ ...n, read: true }))
             }));
@@ -63,9 +72,12 @@ const useNotificationsStore = create((set, get) => ({
     // Accept an invite
     acceptInvite: async (inviteId, notificationId) => {
         try {
+            const inviteService = get()._getInviteService();
+            const notificationService = get()._getNotificationService();
+
             await Promise.all([
-                api.invites.accept(inviteId),
-                api.notifications.markRead(notificationId)
+                inviteService.accept(inviteId),
+                notificationService.markRead(notificationId)
             ]);
 
             // Mark as read locally
@@ -84,9 +96,12 @@ const useNotificationsStore = create((set, get) => ({
     // Decline an invite
     declineInvite: async (inviteId, notificationId) => {
         try {
+            const inviteService = get()._getInviteService();
+            const notificationService = get()._getNotificationService();
+
             await Promise.all([
-                api.invites.decline(inviteId),
-                api.notifications.markRead(notificationId)
+                inviteService.decline(inviteId),
+                notificationService.markRead(notificationId)
             ]);
 
             // Mark as read locally

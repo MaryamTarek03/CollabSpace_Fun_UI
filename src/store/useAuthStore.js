@@ -1,17 +1,27 @@
 import { create } from 'zustand';
-import api from '../services/api';
+import { getContainer } from '../infrastructure/di/container.js';
+import { UserMapper } from '../domain/mappers/index.js';
 
 /**
- * Auth Store
- * Manages user authentication state
+ * Auth Store - Refactored
+ * Uses DI container services instead of direct API calls
+ * 
+ * Design Patterns Applied:
+ * - Dependency Injection: Services injected via container
+ * - Observer Pattern: Zustand provides reactive state
+ * - Facade Pattern: Store provides simplified interface to auth operations
  */
 const useAuthStore = create((set, get) => ({
     // State
     user: null,
     isAuthenticated: false,
-    authInitialized: false, // Track if auth has been checked
+    authInitialized: false,
     loading: false,
     error: null,
+
+    // Get the auth service from DI container
+    _getAuthService: () => getContainer().services.auth,
+    _getUserService: () => getContainer().services.user,
 
     // Actions
     setUser: (user) => set({ user, isAuthenticated: !!user }),
@@ -19,12 +29,12 @@ const useAuthStore = create((set, get) => ({
     login: async (identifier, password) => {
         set({ loading: true, error: null });
         try {
-            const userData = await api.auth.login({ identifier, password });
+            const authService = get()._getAuthService();
+            const userData = await authService.login(identifier, password);
             set({ user: userData, isAuthenticated: true, loading: false });
             localStorage.setItem('user', JSON.stringify(userData));
             return userData;
         } catch (err) {
-            // Store the full error data for warnings, lockout info, etc.
             const errorData = err.data || { error: err.message || 'Login failed' };
             set({ error: errorData, loading: false });
             throw err;
@@ -34,7 +44,8 @@ const useAuthStore = create((set, get) => ({
     register: async (userData) => {
         set({ loading: true, error: null });
         try {
-            const newUser = await api.auth.register(userData);
+            const authService = get()._getAuthService();
+            const newUser = await authService.register(userData);
             set({ user: newUser, isAuthenticated: true, loading: false });
             localStorage.setItem('user', JSON.stringify(newUser));
             return newUser;
@@ -54,7 +65,8 @@ const useAuthStore = create((set, get) => ({
         if (!user) return;
 
         try {
-            const updatedUser = await api.users.update(user.id, profileData);
+            const userService = get()._getUserService();
+            const updatedUser = await userService.update(user.id, profileData);
             set({ user: updatedUser });
             localStorage.setItem('user', JSON.stringify(updatedUser));
             return updatedUser;
@@ -69,7 +81,8 @@ const useAuthStore = create((set, get) => ({
         if (!user) return;
 
         try {
-            const updatedUser = await api.users.uploadAvatar(user.id, imageData);
+            const userService = get()._getUserService();
+            const updatedUser = await userService.uploadAvatar(user.id, imageData);
             set({ user: updatedUser });
             localStorage.setItem('user', JSON.stringify(updatedUser));
             return updatedUser;
@@ -83,7 +96,8 @@ const useAuthStore = create((set, get) => ({
         if (!user) return;
 
         try {
-            const updatedUser = await api.users.deleteAvatar(user.id);
+            const userService = get()._getUserService();
+            const updatedUser = await userService.deleteAvatar(user.id);
             set({ user: updatedUser });
             localStorage.setItem('user', JSON.stringify(updatedUser));
             return updatedUser;
@@ -102,9 +116,9 @@ const useAuthStore = create((set, get) => ({
         if (userParam) {
             try {
                 const user = JSON.parse(decodeURIComponent(userParam));
-                set({ user, isAuthenticated: true, authInitialized: true });
-                localStorage.setItem('user', JSON.stringify(user));
-                // Clean up URL
+                const userEntity = UserMapper.fromApi(user);
+                set({ user: userEntity, isAuthenticated: true, authInitialized: true });
+                localStorage.setItem('user', JSON.stringify(userEntity));
                 window.history.replaceState({}, document.title, window.location.pathname);
                 return;
             } catch (e) {
@@ -123,7 +137,6 @@ const useAuthStore = create((set, get) => ({
                 'callback_failed': 'Authentication callback failed'
             };
             set({ error: { error: errorMessages[errorParam] || 'Authentication failed' }, authInitialized: true });
-            // Clean up URL
             window.history.replaceState({}, document.title, window.location.pathname);
             return;
         }

@@ -104,27 +104,27 @@ export default function CreateSpaceModal() {
                     <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center bg-accent-50">
                         <div className="mb-6">
                             <span className="inline-block px-3 py-1 bg-black text-white rounded-full text-xs font-bold mb-4">Step 1/3</span>
-                            <h2 className="text-4xl font-black text-gray-900 mb-2">Let's build your<br />dream space! 🚀</h2>
+                            <h2 className="text-4xl font-black text-gray-900 mb-2">Let's build your<br />dream space!</h2>
                             <p className="text-gray-600 font-medium">Give it a cool name to get started.</p>
                         </div>
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-bold text-gray-900 mb-2">Space Name</label>
-                                <input autoFocus value={newSpaceName} onChange={(e) => setNewSpaceName(e.target.value)} maxLength={50} className="w-full px-4 py-3 text-lg font-bold border-2 border-black rounded-xl focus:outline-none focus:ring-4 focus:ring-yellow-300/50 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]" placeholder="e.g. The Bat Cave" />
+                                <input autoFocus value={newSpaceName} onChange={(e) => setNewSpaceName(e.target.value)} maxLength={50} className="w-full px-4 py-3 text-lg font-bold border-2 border-black rounded-xl focus:outline-none focus:ring-4 focus:ring-accent-300/50 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]" placeholder="e.g. The Bat Cave" />
                                 <p className="text-xs text-gray-400 mt-1 text-right">{newSpaceName.length}/50</p>
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-gray-900 mb-2">Description</label>
-                                <textarea value={newSpaceDescription} onChange={(e) => setNewSpaceDescription(e.target.value)} maxLength={200} className="w-full px-4 py-3 font-medium border-2 border-black rounded-xl focus:outline-none focus:ring-4 focus:ring-yellow-300/50 h-24 resize-none" placeholder="What happens in this space?" />
+                                <textarea value={newSpaceDescription} onChange={(e) => setNewSpaceDescription(e.target.value)} maxLength={200} className="w-full px-4 py-3 font-medium border-2 border-black rounded-xl focus:outline-none focus:ring-4 focus:ring-accent-300/50 h-24 resize-none" placeholder="What happens in this space?" />
                                 <p className="text-xs text-gray-400 mt-1 text-right">{newSpaceDescription.length}/200</p>
                             </div>
                         </div>
                         <Button disabled={!newSpaceName.trim()} onClick={() => setCreateStep(2)} fullWidth className="mt-8 !bg-black !py-4 !text-lg">Next Step →</Button>
                     </div>
-                    <div className="hidden md:flex w-1/2 bg-gradient-to-br from-blue-400 to-purple-500 items-center justify-center relative border-l-4 border-black">
+                    <div className="hidden md:flex w-1/2 bg-gradient-to-br from-white-400 to-accent-500 items-center justify-center relative border-l-4 border-black">
                         <div className="text-center p-8">
                             <div className="bg-white border-2 border-black rounded-2xl p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)] rotate-3 max-w-xs mx-auto">
-                                <div className="h-32 bg-gray-100 rounded-xl mb-4 flex items-center justify-center text-4xl">🏰</div>
+                                <div className="h-32 bg-gray-100 rounded-xl mb-4 flex items-center justify-center text-4xl">💙</div>
                                 <div className="h-4 bg-gray-200 rounded-full w-3/4 mb-2" /><div className="h-4 bg-gray-200 rounded-full w-1/2" />
                             </div>
                             <p className="text-white font-bold mt-8 text-xl drop-shadow-md">Previewing: {newSpaceName || 'Untitled Space'}</p>

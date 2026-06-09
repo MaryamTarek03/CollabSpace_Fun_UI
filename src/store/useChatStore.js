@@ -1,11 +1,16 @@
 import { create } from 'zustand';
-import api from '../services/api';
-import { Message } from '../models';
+import { getContainer } from '../infrastructure/di/container.js';
+import { MessageMapper } from '../domain/mappers/index.js';
 import { INITIAL_CHAT_HISTORY } from '../data/mockData';
 
 /**
- * Chat Store
- * Manages chat channels, messages and active chat space
+ * Chat Store - Refactored
+ * Uses DI container services instead of direct API calls
+ * 
+ * Design Patterns Applied:
+ * - Dependency Injection: Services injected via container
+ * - Observer Pattern: Zustand provides reactive state
+ * - Facade Pattern: Store provides simplified interface to chat operations
  */
 const useChatStore = create((set, get) => ({
     // State
@@ -13,12 +18,16 @@ const useChatStore = create((set, get) => ({
     channels: [],
     activeChannel: null,
     messages: [],
-    members: [], // Members of the active space for mentions
-    replyingTo: null, // Message being replied to
+    members: [],
+    replyingTo: null,
     localChatHistory: INITIAL_CHAT_HISTORY,
     chatInput: '',
     loading: false,
     error: null,
+
+    // Get services from DI container
+    _getChatService: () => getContainer().services.chat,
+    _getMemberService: () => getContainer().services.member,
 
     // Actions
     setActiveChatSpace: async (space) => {
@@ -38,9 +47,9 @@ const useChatStore = create((set, get) => ({
         if (!spaceId) return;
         set({ loading: true });
         try {
-            const data = await api.channels.getBySpace(spaceId);
+            const chatService = get()._getChatService();
+            const data = await chatService.getChannels(spaceId);
             set({ channels: data, loading: false });
-            // Auto-select first channel (usually "general")
             if (data.length > 0) {
                 get().setActiveChannel(data[0]);
             }
@@ -55,7 +64,8 @@ const useChatStore = create((set, get) => ({
     fetchMembers: async (spaceId) => {
         if (!spaceId) return;
         try {
-            const data = await api.members.getBySpace(spaceId);
+            const memberService = get()._getMemberService();
+            const data = await memberService.getBySpace(spaceId);
             set({ members: data });
             return data;
         } catch (err) {
@@ -78,7 +88,8 @@ const useChatStore = create((set, get) => ({
         if (!activeChatSpace) return;
 
         try {
-            const newChannel = await api.channels.create(activeChatSpace.id, {
+            const chatService = get()._getChatService();
+            const newChannel = await chatService.createChannel(activeChatSpace.id, {
                 name,
                 description,
                 createdBy
@@ -95,7 +106,8 @@ const useChatStore = create((set, get) => ({
     updateChannel: async (channelId, name, description) => {
         const { channels } = get();
         try {
-            const updated = await api.channels.update(channelId, { name, description });
+            const chatService = get()._getChatService();
+            const updated = await chatService.updateChannel(channelId, { name, description });
             set({ channels: channels.map(c => c.id === channelId ? { ...c, name, description } : c) });
             return updated;
         } catch (err) {
@@ -108,10 +120,10 @@ const useChatStore = create((set, get) => ({
     deleteChannel: async (channelId) => {
         const { channels, activeChannel } = get();
         try {
-            await api.channels.delete(channelId);
+            const chatService = get()._getChatService();
+            await chatService.deleteChannel(channelId);
             const remaining = channels.filter(c => c.id !== channelId);
             set({ channels: remaining });
-            // If deleted channel was active, switch to first available
             if (activeChannel?.id === channelId && remaining.length > 0) {
                 get().setActiveChannel(remaining[0]);
             }
@@ -127,8 +139,8 @@ const useChatStore = create((set, get) => ({
 
         set({ loading: true });
         try {
-            const data = await api.messages.getByChannel(channelId);
-            const messages = Message.fromApiList(data);
+            const chatService = get()._getChatService();
+            const messages = await chatService.getMessages(null, channelId);
             set({ messages, loading: false });
             return messages;
         } catch (err) {
@@ -154,14 +166,15 @@ const useChatStore = create((set, get) => ({
         };
 
         try {
-            const response = await api.messages.send(activeChannel.id, {
+            const chatService = get()._getChatService();
+            const response = await chatService.sendMessage(activeChatSpace.id, {
                 ...messageData,
+                channelId: activeChannel.id,
                 spaceId: activeChatSpace.id,
                 replyToId: replyingTo?.id || null
             });
-            const apiMessage = Message.fromApi(response);
-            set({ messages: [...messages, apiMessage], replyingTo: null });
-            return apiMessage;
+            set({ messages: [...messages, response], replyingTo: null });
+            return response;
         } catch (err) {
             // Fallback to local state
             set({ messages: [...messages, newMessage], replyingTo: null });
@@ -175,12 +188,11 @@ const useChatStore = create((set, get) => ({
         if (!activeChatSpace) return;
 
         try {
-            const response = await api.messages.forward(messageId, targetChannelId, senderId, activeChatSpace.id);
-            // If forwarding to current channel, add to messages
+            const chatService = get()._getChatService();
+            const response = await chatService.forwardMessage(messageId, targetChannelId, senderId, activeChatSpace.id);
             if (targetChannelId === activeChannel?.id) {
                 const { messages } = get();
-                const apiMessage = Message.fromApi(response);
-                set({ messages: [...messages, apiMessage] });
+                set({ messages: [...messages, MessageMapper.fromApi(response)] });
             }
             return response;
         } catch (err) {
@@ -192,12 +204,12 @@ const useChatStore = create((set, get) => ({
     updateMessage: async (id, text, senderId) => {
         const { messages } = get();
         try {
-            const updated = await api.messages.update(id, text, senderId);
-            const apiMessage = Message.fromApi(updated);
+            const chatService = get()._getChatService();
+            const updated = await chatService.updateMessage(id, text, senderId);
             set({
-                messages: messages.map(m => m.id === id ? apiMessage : m)
+                messages: messages.map(m => m.id === id ? updated : m)
             });
-            return apiMessage;
+            return updated;
         } catch (err) {
             console.error(err);
             throw err;
@@ -207,14 +219,14 @@ const useChatStore = create((set, get) => ({
     deleteMessage: async (id, senderId) => {
         const { messages } = get();
         try {
-            const response = await api.messages.delete(id, senderId);
-            // Soft delete: mark message as deleted in local state
+            const chatService = get()._getChatService();
+            const response = await chatService.deleteMessage(id, senderId);
             set({
                 messages: messages.map(m => m.id === id ? {
                     ...m,
                     deletedAt: new Date().toISOString(),
                     deletedBy: senderId,
-                    deletedByRole: response.deletedByRole
+                    deletedByRole: response?.deletedByRole
                 } : m)
             });
         } catch (err) {
@@ -231,4 +243,3 @@ const useChatStore = create((set, get) => ({
 }));
 
 export default useChatStore;
-

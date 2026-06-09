@@ -9,6 +9,7 @@ import TeamView from './features/members/TeamView';
 import UnitySessionView from './features/session/UnitySessionView';
 import AuthPage from './features/auth/AuthPage';
 import InvitePage from './features/spaces/InvitePage';
+import LandingPage from './features/landing/LandingPage';
 
 // Layout wrapper that includes auth check
 import AppLayout from './AppLayout';
@@ -36,13 +37,13 @@ function ProtectedRoute() {
 }
 
 /**
- * Public Route wrapper - redirects to / if already authenticated
+ * Public Route wrapper - redirects to /dashboard if already authenticated
  */
 function PublicRoute({ children }) {
     const { isAuthenticated } = useAuthStore();
 
     if (isAuthenticated) {
-        return <Navigate to="/" replace />;
+        return <Navigate to="/dashboard" replace />;
     }
 
     return children;
@@ -52,7 +53,13 @@ function PublicRoute({ children }) {
  * Router configuration
  */
 export const router = createBrowserRouter([
-    // Public routes
+    // Landing page - accessible to everyone
+    {
+        path: '/',
+        element: <LandingPage />,
+    },
+
+    // Auth routes
     {
         path: '/login',
         element: (
@@ -68,7 +75,7 @@ export const router = createBrowserRouter([
 
     // Protected routes (require authentication)
     {
-        path: '/',
+        path: '/dashboard',
         element: <ProtectedRoute />,
         children: [
             {
