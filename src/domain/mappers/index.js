@@ -113,9 +113,11 @@ export const MemberMapper = {
     fromApi(data) {
         if (!data) return null;
         const role = data.baseRole || data.role || 'member';
+        const customRoles = data.roles || [];
         return createMember({
             ...data,
             role,
+            customRoles,
         });
     },
 

@@ -66,14 +66,15 @@ export default function SpaceDetailsView() {
                 console.error("Failed to fetch space details or files:", err);
                 
                 // Fallback to local space if API fails (e.g. offline)
-                const localSpace = spaces.find(s => s.id === spaceId);
+                const localSpaces = useSpacesStore.getState().spaces;
+                const localSpace = localSpaces.find(s => s.id === spaceId);
                 if (localSpace) {
                     setActiveSpace(localSpace);
                 } else {
                     navigate('/dashboard');
                 }
             });
-    }, [spaceId, spaces, setActiveSpace, navigate]);
+    }, [spaceId, setActiveSpace, navigate]);
 
     // Show loading while spaces are loading or space not set yet
     if (spacesLoading || !activeSpace) {

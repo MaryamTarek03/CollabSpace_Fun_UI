@@ -47,6 +47,7 @@ export function createMember(data = {}) {
         joinedAt: data.joinedAt || null,
         avatarColor: data.avatarColor || data.avatar || getRandomColor(),
         avatarImage: data.avatarImage || null,
+        customRoles: data.customRoles || [],
 
         // Computed property
         get initials() {

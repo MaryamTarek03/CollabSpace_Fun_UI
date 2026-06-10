@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Settings, Palette, Trash2, Save, AlertTriangle, Lock, Globe, Image, Upload, Ban, Loader } from 'lucide-react';
+import { X, Settings, Palette, Trash2, Save, AlertTriangle, Lock, Globe, Image, Upload, Ban, Loader, Shield, Plus, Check } from 'lucide-react';
 import { useUIStore, useSpacesStore, useAuthStore } from '../../store';
 import api from '../../services/api';
 import { getImageUrl, GRADIENT_OPTIONS } from '../../shared/utils/helpers';
@@ -7,6 +7,7 @@ import ModalWrapper from '../../shared/components/ModalWrapper';
 import Button, { CloseButton } from '../../shared/components/Button';
 import Avatar from '../../shared/components/Avatar';
 import { ADMIN_ROLES } from '../../shared/constants';
+import Checkbox from '../../shared/components/Checkbox';
 
 const CATEGORY_OPTIONS = ['CREATIVE', 'TECH', 'EDUCATION', 'MEETING'];
 
@@ -26,6 +27,13 @@ export default function SpaceSettingsModal() {
     const [loadingBans, setLoadingBans] = useState(false);
     const [pendingInvites, setPendingInvites] = useState([]);
     const [loadingInvites, setLoadingInvites] = useState(false);
+
+    const [spaceRoles, setSpaceRoles] = useState([]);
+    const [loadingRoles, setLoadingRoles] = useState(false);
+    const [availablePermissions, setAvailablePermissions] = useState([]);
+    const [selectedRole, setSelectedRole] = useState(null);
+    const [editingRole, setEditingRole] = useState({ name: '', color: '', permissions: [] });
+    const [rolesMessage, setRolesMessage] = useState('');
 
     useEffect(() => {
         if (activeSpace && isSpaceSettingsModalOpen) {
@@ -50,6 +58,56 @@ export default function SpaceSettingsModal() {
         if (spaceSettingsTab === 'invites' && activeSpace?.id && isSpaceSettingsModalOpen) {
             setLoadingInvites(true);
             api.invites.getBySpace(activeSpace.id).then(setPendingInvites).catch(console.error).finally(() => setLoadingInvites(false));
+        }
+    }, [spaceSettingsTab, activeSpace?.id, isSpaceSettingsModalOpen]);
+
+    const FALLBACK_PERMISSIONS = [
+        { name: "ViewChannels", label: "View Channels", description: "See channels in the space", category: "Channels" },
+        { name: "SendMessages", label: "Send Chat Messages", description: "Send chat messages in channels", category: "Channels" },
+        { name: "ManageMessages", label: "Manage Messages", description: "Delete or pin other members' messages", category: "Channels" },
+        { name: "CreateChannels", label: "Create Channels", description: "Create new text channels", category: "Channels" },
+        { name: "ManageChannels", label: "Manage Channels", description: "Edit or delete channels", category: "Channels" },
+        { name: "UploadFiles", label: "Upload Files", description: "Upload files to the space storage", category: "Files" },
+        { name: "ManageFiles", label: "Manage Files", description: "Delete other members' files and folders", category: "Files" },
+        { name: "InviteMembers", label: "Invite Members", description: "Send invites and create invite codes", category: "Members" },
+        { name: "KickMembers", label: "Kick Members", description: "Remove members from the space", category: "Members" },
+        { name: "BanMembers", label: "Ban Members", description: "Ban or unban members", category: "Members" },
+        { name: "ManageRoles", label: "Manage Roles", description: "Create, edit, and delete custom roles", category: "Administration" },
+        { name: "ManageSpace", label: "Manage Space", description: "Edit space info, privacy, and thumbnail", category: "Administration" },
+        { name: "CreateSessions", label: "Create Sessions", description: "Create collaborative room sessions", category: "Sessions" },
+        { name: "ManageSessions", label: "Manage Sessions", description: "End other members' sessions", category: "Sessions" },
+        { name: "ViewAuditLog", label: "View Audit Log", description: "View the space audit log", category: "Administration" }
+    ];
+
+    useEffect(() => {
+        if (spaceSettingsTab === 'roles' && activeSpace?.id && isSpaceSettingsModalOpen) {
+            setLoadingRoles(true);
+            setRolesMessage('');
+            
+            // 1. Fetch available permissions (with static fallback)
+            api.roles.getAvailablePermissions()
+                .then(data => setAvailablePermissions(data || FALLBACK_PERMISSIONS))
+                .catch(() => setAvailablePermissions(FALLBACK_PERMISSIONS));
+
+            // 2. Fetch all roles in space
+            api.roles.getAll(activeSpace.id)
+                .then(rolesList => {
+                    const sortedRoles = (rolesList || []).sort((a, b) => a.position - b.position);
+                    setSpaceRoles(sortedRoles);
+                    if (sortedRoles.length > 0) {
+                        const defaultSel = sortedRoles[0];
+                        setSelectedRole(defaultSel);
+                        setEditingRole({
+                            name: defaultSel.name || '',
+                            color: defaultSel.color || '#6366f1',
+                            permissions: defaultSel.permissions || []
+                        });
+                    } else {
+                        setSelectedRole(null);
+                    }
+                })
+                .catch(console.error)
+                .finally(() => setLoadingRoles(false));
         }
     }, [spaceSettingsTab, activeSpace?.id, isSpaceSettingsModalOpen]);
 
@@ -117,6 +175,70 @@ export default function SpaceSettingsModal() {
         } catch (err) { }
     };
 
+    const handleSaveRole = async () => {
+        if (!editingRole.name.trim()) {
+            setRolesMessage('Role name cannot be empty');
+            return;
+        }
+        setRolesMessage('');
+        try {
+            if (selectedRole === 'new') {
+                const newRole = await api.roles.create(activeSpace.id, {
+                    name: editingRole.name.trim(),
+                    color: editingRole.color || '#6366f1',
+                    permissions: editingRole.permissions
+                });
+                setSpaceRoles(prev => [...prev, newRole]);
+                setSelectedRole(newRole);
+                setEditingRole({
+                    name: newRole.name,
+                    color: newRole.color || '#6366f1',
+                    permissions: newRole.permissions
+                });
+                setRolesMessage('Role created successfully!');
+            } else {
+                await api.roles.update(activeSpace.id, selectedRole.id, {
+                    name: editingRole.name.trim(),
+                    color: editingRole.color || '#6366f1',
+                    permissions: editingRole.permissions
+                });
+                
+                // Update local list
+                setSpaceRoles(prev => prev.map(r => r.id === selectedRole.id ? {
+                    ...r,
+                    name: editingRole.name.trim(),
+                    color: editingRole.color || '#6366f1',
+                    permissions: editingRole.permissions
+                } : r));
+                setRolesMessage('Role saved successfully!');
+            }
+        } catch (err) {
+            setRolesMessage('Failed to save role');
+        }
+    };
+
+    const handleDeleteRole = async () => {
+        if (!selectedRole || selectedRole === 'new' || selectedRole.isSystemDefault) return;
+        try {
+            await api.roles.delete(activeSpace.id, selectedRole.id);
+            const remaining = spaceRoles.filter(r => r.id !== selectedRole.id);
+            setSpaceRoles(remaining);
+            if (remaining.length > 0) {
+                setSelectedRole(remaining[0]);
+                setEditingRole({
+                    name: remaining[0].name || '',
+                    color: remaining[0].color || '#6366f1',
+                    permissions: remaining[0].permissions || []
+                });
+            } else {
+                setSelectedRole(null);
+            }
+            setRolesMessage('Role deleted successfully!');
+        } catch (err) {
+            setRolesMessage('Failed to delete role');
+        }
+    };
+
     const handleRevokeInvite = async (inviteId) => {
         try {
             await api.invites.revoke(inviteId);
@@ -127,6 +249,7 @@ export default function SpaceSettingsModal() {
     const tabs = [
         { id: 'general', label: 'General', icon: Settings },
         { id: 'appearance', label: 'Appearance', icon: Palette },
+        ...(canAccess ? [{ id: 'roles', label: 'Roles & Permissions', icon: Shield }] : []),
         ...(canAccess ? [{ id: 'invites', label: 'Pending Invites', icon: Globe }] : []),
         ...(canAccess ? [{ id: 'banned', label: 'Banned Users', icon: Ban }] : []),
         ...(isOwner ? [{ id: 'danger', label: 'Danger Zone', icon: Trash2 }] : []),
@@ -152,7 +275,7 @@ export default function SpaceSettingsModal() {
     );
 
     return (
-        <ModalWrapper isOpen={isSpaceSettingsModalOpen} onClose={closeSpaceSettingsModal} size="lg" zLevel="medium" className="!max-w-3xl !h-[550px]">
+        <ModalWrapper isOpen={isSpaceSettingsModalOpen} onClose={closeSpaceSettingsModal} size="xl" zLevel="medium" className="!max-w-4xl !h-[650px]">
             <CloseButton onClick={closeSpaceSettingsModal} className="absolute top-4 right-4 z-10" />
 
             <div className="flex flex-col md:flex-row h-full">
@@ -233,6 +356,156 @@ export default function SpaceSettingsModal() {
                                 {saveMessage && <div className={`mt-4 text-sm font-bold ${saveMessage.includes('updated') || saveMessage.includes('saved') ? 'text-green-600' : 'text-red-500'}`}>{saveMessage}</div>}
                                 {thumbnailType === 'gradient' && <Button onClick={handleSave} disabled={isSaving} className="mt-6 !bg-black" icon={<Save />}>Save Appearance</Button>}
                             </div>
+                        </div>
+                    )}
+
+                    {spaceSettingsTab === 'roles' && (
+                        <div className="flex flex-col h-full space-y-4">
+                            <h3 className="text-xl font-black flex items-center gap-2"><Shield size={20} /> Roles & Permissions</h3>
+                            {loadingRoles ? (
+                                <div className="flex justify-center items-center h-64"><Loader className="animate-spin text-gray-400" size={32} /></div>
+                            ) : (
+                                <div className="flex flex-1 gap-4 overflow-hidden" style={{ minHeight: '450px' }}>
+                                    {/* Roles List */}
+                                    <div className="w-1/3 border-r-2 border-black pr-4 flex flex-col justify-between overflow-y-auto">
+                                        <div className="space-y-2">
+                                            {spaceRoles.map(role => (
+                                                <button
+                                                    key={role.id}
+                                                    onClick={() => {
+                                                        setSelectedRole(role);
+                                                        setEditingRole({
+                                                            name: role.name || '',
+                                                            color: role.color || '#6366f1',
+                                                            permissions: role.permissions || []
+                                                        });
+                                                        setRolesMessage('');
+                                                    }}
+                                                    className={`w-full text-left px-3 py-2 rounded-xl font-bold border-2 transition-all flex items-center gap-2 ${selectedRole?.id === role.id ? 'bg-purple-100 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'bg-white border-gray-200 hover:border-black'}`}
+                                                >
+                                                    <span className="w-3.5 h-3.5 rounded-full border border-black" style={{ backgroundColor: role.color || '#6366f1' }} />
+                                                    <span className="truncate flex-1 text-sm">{role.name}</span>
+                                                    {role.isSystemDefault && <span className="text-[9px] bg-gray-250 border border-black px-1 py-0.2 rounded font-extrabold uppercase scale-90">System</span>}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                setSelectedRole('new');
+                                                setEditingRole({ name: '', color: '#6366f1', permissions: [] });
+                                                setRolesMessage('');
+                                            }}
+                                            className={`w-full mt-4 flex items-center justify-center gap-2 border-2 border-dashed border-black hover:bg-purple-50 rounded-xl p-3 font-bold transition-all ${selectedRole === 'new' ? 'bg-purple-100 border-solid shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : ''}`}
+                                        >
+                                            <Plus size={16} /> Create Custom Role
+                                        </button>
+                                    </div>
+
+                                    {/* Role Config Panel */}
+                                    <div className="w-2/3 pl-4 flex flex-col justify-between overflow-y-auto">
+                                        {selectedRole ? (
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <label className="block font-bold mb-1 text-sm">Role Name</label>
+                                                    <input
+                                                        type="text"
+                                                        value={editingRole.name}
+                                                        onChange={(e) => setEditingRole(prev => ({ ...prev, name: e.target.value }))}
+                                                        disabled={selectedRole.isSystemDefault}
+                                                        placeholder="e.g. Moderator"
+                                                        className="w-full border-2 border-black rounded-xl p-2.5 font-medium outline-none focus:ring-2 focus:ring-purple-300 disabled:bg-gray-100 disabled:opacity-75"
+                                                    />
+                                                </div>
+
+                                                {!selectedRole.isSystemDefault && (
+                                                    <div>
+                                                        <label className="block font-bold mb-2 text-sm">Role Color</label>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#3b82f6', '#6366f1', '#a855f7', '#ec4899'].map(c => (
+                                                                <button
+                                                                    key={c}
+                                                                    onClick={() => setEditingRole(prev => ({ ...prev, color: c }))}
+                                                                    className={`w-7 h-7 rounded-full border-2 transition-all ${editingRole.color === c ? 'border-black scale-110 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]' : 'border-transparent hover:border-black'}`}
+                                                                    style={{ backgroundColor: c }}
+                                                                />
+                                                            ))}
+                                                            <input
+                                                                type="color"
+                                                                value={editingRole.color || '#6366f1'}
+                                                                onChange={(e) => setEditingRole(prev => ({ ...prev, color: e.target.value }))}
+                                                                className="w-7 h-7 rounded-full border-2 border-black cursor-pointer p-0 overflow-hidden"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                <div>
+                                                    <label className="block font-bold mb-2 text-sm">Permissions</label>
+                                                    <div className="border-2 border-black rounded-xl p-3 bg-gray-50 max-h-[260px] overflow-y-auto space-y-4">
+                                                        {Object.entries(
+                                                            availablePermissions.reduce((acc, p) => {
+                                                                const cat = p.category || 'General';
+                                                                if (!acc[cat]) acc[cat] = [];
+                                                                acc[cat].push(p);
+                                                                return acc;
+                                                            }, {})
+                                                        ).map(([category, perms]) => (
+                                                            <div key={category} className="space-y-2">
+                                                                <h4 className="text-[10px] font-black uppercase text-gray-500 tracking-wider pl-1">{category}</h4>
+                                                                <div className="grid grid-cols-1 gap-1.5">
+                                                                    {perms.map(p => {
+                                                                        const permKey = p.key || p.name;
+                                                                        const isChecked = editingRole.permissions.includes(permKey);
+                                                                        return (
+                                                                            <Checkbox
+                                                                                key={permKey}
+                                                                                checked={isChecked}
+                                                                                disabled={selectedRole.isSystemDefault}
+                                                                                onChange={(e) => {
+                                                                                    const newPerms = e.target.checked
+                                                                                        ? [...editingRole.permissions, permKey]
+                                                                                        : editingRole.permissions.filter(x => x !== permKey);
+                                                                                    setEditingRole(prev => ({ ...prev, permissions: newPerms }));
+                                                                                }}
+                                                                                label={p.label}
+                                                                                description={p.description}
+                                                                            />
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {rolesMessage && (
+                                                    <div className={`text-xs font-bold ${rolesMessage.includes('successfully') ? 'text-green-650' : 'text-red-500'}`}>
+                                                        {rolesMessage}
+                                                    </div>
+                                                )}
+
+                                                {!selectedRole.isSystemDefault && (
+                                                    <div className="flex gap-2 pt-2">
+                                                        <Button onClick={handleSaveRole} size="sm" variant="primary" className="!bg-black" icon={<Save size={14} />}>
+                                                            {selectedRole === 'new' ? 'Create Role' : 'Save Changes'}
+                                                        </Button>
+                                                        {selectedRole !== 'new' && (
+                                                            <Button onClick={handleDeleteRole} size="sm" variant="danger" icon={<Trash2 size={14} />}>
+                                                                Delete
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center h-full text-center text-gray-400 py-12">
+                                                <Shield size={48} className="stroke-1 mb-2" />
+                                                <p className="font-bold text-sm">Select a role or create one</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 

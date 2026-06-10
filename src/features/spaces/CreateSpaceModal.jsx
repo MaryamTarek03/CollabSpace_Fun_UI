@@ -131,6 +131,23 @@ export default function CreateSpaceModal() {
                         console.error('Failed to create default channels:', channelErr);
                     }
                 }
+
+                // Create default custom roles for the space template
+                if (template.defaultRoles && template.defaultRoles.length > 0) {
+                    try {
+                        await Promise.all(
+                            template.defaultRoles.map(r =>
+                                api.roles.create(newSpace.id, {
+                                    name: r.name,
+                                    color: r.color,
+                                    permissions: r.permissions
+                                })
+                            )
+                        );
+                    } catch (roleErr) {
+                        console.error('Failed to create default custom roles:', roleErr);
+                    }
+                }
                 
                 let shareCode = newSpace.code || newSpace.inviteCode || newSpace.id;
                 try {

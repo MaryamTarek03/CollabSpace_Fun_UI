@@ -144,6 +144,17 @@ export const files = {
     createLink: (spaceId, name, url, uploadedBy, folderId) => fileRepo.createLink(spaceId, name, url, uploadedBy, folderId),
 };
 
+// ============ ROLES ============
+export const roles = {
+    getAll: (spaceId) => httpClient.get(`/spaces/${spaceId}/roles`),
+    create: (spaceId, data) => httpClient.post(`/spaces/${spaceId}/roles`, data),
+    update: (spaceId, roleId, data) => httpClient.put(`/spaces/${spaceId}/roles/${roleId}`, data),
+    delete: (spaceId, roleId) => httpClient.delete(`/spaces/${spaceId}/roles/${roleId}`),
+    getAvailablePermissions: () => httpClient.get('/spaces/permissions'),
+    assignCustomRole: (spaceId, memberId, roleId) => httpClient.post(`/spaces/${spaceId}/members/${memberId}/roles/${roleId}`),
+    removeCustomRole: (spaceId, memberId, roleId) => httpClient.delete(`/spaces/${spaceId}/members/${memberId}/roles/${roleId}`),
+};
+
 // Export grouped API
 const api = {
     auth,
@@ -157,6 +168,7 @@ const api = {
     messages,
     folders,
     files,
+    roles,
     // Generic request methods
     get: (endpoint) => {
         if (endpoint.startsWith('/invite/')) {
