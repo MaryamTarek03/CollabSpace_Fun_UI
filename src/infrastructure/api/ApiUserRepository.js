@@ -4,7 +4,7 @@
  */
 
 import { httpClient } from './httpClient.js';
-import { UserMapper } from '../../domain/mappers/index.js';
+import { UserMapper, SpaceMapper } from '../../domain/mappers/index.js';
 
 /**
  * Create a User Repository that uses the HTTP API
@@ -71,7 +71,8 @@ export function createApiUserRepository() {
             try {
                 const data = await httpClient.get('/spaces');
                 const spacesList = data && data.data ? data.data : (Array.isArray(data) ? data : []);
-                return spacesList.filter(space => {
+                const mapped = SpaceMapper.fromApiList(spacesList);
+                return mapped.filter(space => {
                     const memberIds = space.members?.map(m => m.userId || m.id) || [];
                     return memberIds.includes(id) && memberIds.includes(viewerId);
                 });

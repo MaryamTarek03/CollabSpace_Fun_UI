@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Lock, Mail, Calendar, Users, UserPlus, ChevronDown, Loader } from 'lucide-react';
 import api from '../../services/api';
-import { formatDate, getImageUrl } from '../../shared/utils/helpers';
+import { formatDate, getImageUrl, getSpaceThumbnailStyle } from '../../shared/utils/helpers';
 import { useSpacesStore, useUIStore } from '../../store';
 
 export default function UserProfileModal({ userId, viewerId, onClose }) {
@@ -190,8 +190,8 @@ export default function UserProfileModal({ userId, viewerId, onClose }) {
                                                     className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors text-left disabled:opacity-50"
                                                 >
                                                     <div
-                                                        className="w-8 h-8 rounded-lg flex-shrink-0"
-                                                        style={{ background: space.thumbnail || '#e5e7eb' }}
+                                                        className="w-8 h-8 rounded-lg flex-shrink-0 overflow-hidden"
+                                                        style={getSpaceThumbnailStyle(space.thumbnail)}
                                                     />
                                                     <span className="font-medium text-sm truncate flex-1">{space.name}</span>
                                                     {invitingToSpace === space.id ? (
@@ -220,8 +220,8 @@ export default function UserProfileModal({ userId, viewerId, onClose }) {
                                                 className="flex items-center gap-3 p-2 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors"
                                             >
                                                 <div
-                                                    className="w-8 h-8 rounded-lg flex-shrink-0"
-                                                    style={{ background: space.thumbnailGradient || '#e5e7eb' }}
+                                                    className="w-8 h-8 rounded-lg flex-shrink-0 overflow-hidden"
+                                                    style={getSpaceThumbnailStyle(space.thumbnail)}
                                                 />
                                                 <span className="font-medium text-sm truncate flex-1">{space.name}</span>
                                                 {space.category && (
