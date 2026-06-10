@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, UserCog, Trash2, Check, Loader, Ban, Send, Shield } from 'lucide-react';
+import { X, UserCog, Trash2, Check, Loader, Ban, Send } from 'lucide-react';
 import { useUIStore, useSpacesStore, useAuthStore } from '../../store';
 import api from '../../services/api';
 import UserProfileModal from '../profile/UserProfileModal';
@@ -7,7 +7,6 @@ import ModalWrapper from '../../shared/components/ModalWrapper';
 import Button, { CloseButton, IconButton } from '../../shared/components/Button';
 import Avatar from '../../shared/components/Avatar';
 import { ADMIN_ROLES } from '../../shared/constants';
-import Checkbox from '../../shared/components/Checkbox';
 
 export default function MembersModal() {
     const { isMembersModalOpen, closeMembersModal, openConfirmation, openInputModal } = useUIStore();
@@ -20,24 +19,9 @@ export default function MembersModal() {
     const [activeTab, setActiveTab] = useState('members');
     const [requests, setRequests] = useState([]);
     const [loadingRequests, setLoadingRequests] = useState(false);
-    const [customRoles, setCustomRoles] = useState([]);
-    const [activeMemberRoleSelector, setActiveMemberRoleSelector] = useState(null);
 
-    // Load custom roles when modal opens
-    useEffect(() => {
-        if (isMembersModalOpen && activeSpace) {
-            api.roles.getAll(activeSpace.id)
-                .then(roles => setCustomRoles((roles || []).filter(r => !r.isSystemDefault)))
-                .catch(console.error);
-        }
-    }, [isMembersModalOpen, activeSpace]);
 
-    // Reset role selector when modal closes
-    useEffect(() => {
-        if (!isMembersModalOpen) {
-            setActiveMemberRoleSelector(null);
-        }
-    }, [isMembersModalOpen]);
+
 
     // Load requests when tab changes
     useEffect(() => {
@@ -96,41 +80,7 @@ export default function MembersModal() {
         }
     };
 
-    const handleToggleCustomRole = async (member, roleId) => {
-        const hasRole = member.customRoles?.some(r => r.id === roleId);
-        const roleObj = customRoles.find(r => r.id === roleId);
 
-        // Optimistic UI update
-        const nextRoles = hasRole
-            ? (member.customRoles || []).filter(r => r.id !== roleId)
-            : [...(member.customRoles || []), roleObj].filter(Boolean);
-
-        const updatedMembers = activeSpace.members?.map(m => {
-            if (m.id === member.id) {
-                return { ...m, customRoles: nextRoles };
-            }
-            return m;
-        }) || [];
-        updateSpaceMembers(updatedMembers);
-
-        try {
-            if (hasRole) {
-                await api.roles.removeCustomRole(activeSpace.id, member.userId, roleId);
-            } else {
-                await api.roles.assignCustomRole(activeSpace.id, member.userId, roleId);
-            }
-        } catch (err) {
-            console.error('Failed to toggle custom role:', err);
-            // Revert state
-            const revertedMembers = activeSpace.members?.map(m => {
-                if (m.id === member.id) {
-                    return { ...m, customRoles: member.customRoles };
-                }
-                return m;
-            }) || [];
-            updateSpaceMembers(revertedMembers);
-        }
-    };
 
     const handleInvite = async () => {
         if (!inviteEmail || !inviteEmail.includes('@')) return;
@@ -285,37 +235,6 @@ export default function MembersModal() {
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            {canManageMembers && customRoles.length > 0 && member.role !== 'Owner' && (
-                                                <div className="relative">
-                                                    <button
-                                                        onClick={() => setActiveMemberRoleSelector(activeMemberRoleSelector === member.id ? null : member.id)}
-                                                        className={`px-2 py-1 border-2 border-black rounded-lg bg-white hover:bg-gray-100 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center gap-1 text-[11px] font-bold ${activeMemberRoleSelector === member.id ? 'bg-purple-50' : ''}`}
-                                                    >
-                                                        <Shield size={11} /> Roles
-                                                    </button>
-                                                    {activeMemberRoleSelector === member.id && (
-                                                        <div className="absolute right-0 mt-1.5 w-48 bg-white border-2 border-black rounded-xl p-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-30">
-                                                            <div className="text-[9px] font-black uppercase text-gray-400 mb-1 px-1 border-b pb-0.5">Assign Custom Roles</div>
-                                                            <div className="space-y-0.5 max-h-36 overflow-y-auto">
-                                                                {customRoles.map(role => {
-                                                                    const isAssigned = member.customRoles?.some(r => r.id === role.id);
-                                                                    return (
-                                                                        <Checkbox
-                                                                            key={role.id}
-                                                                            checked={isAssigned}
-                                                                            onChange={() => handleToggleCustomRole(member, role.id)}
-                                                                            className="!p-1 hover:!bg-purple-50 !gap-2"
-                                                                        >
-                                                                            <span className="w-2.5 h-2.5 rounded-full border border-black shrink-0 mt-0.5" style={{ backgroundColor: role.color || '#6366f1' }} />
-                                                                            <span className="text-[11px] font-bold text-gray-700 truncate leading-none">{role.name}</span>
-                                                                        </Checkbox>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
                                             <select
                                                 value={member.role}
                                                 onChange={(e) => {

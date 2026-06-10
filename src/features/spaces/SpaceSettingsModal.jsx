@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Settings, Palette, Trash2, Save, AlertTriangle, Lock, Globe, Image, Upload, Ban, Loader, Shield, Plus, Check } from 'lucide-react';
+import { X, Settings, Palette, Trash2, Save, AlertTriangle, Lock, Globe, Image, Upload, Ban, Loader, Shield, Plus, Check, Users } from 'lucide-react';
 import { useUIStore, useSpacesStore, useAuthStore } from '../../store';
 import api from '../../services/api';
 import { getImageUrl, GRADIENT_OPTIONS } from '../../shared/utils/helpers';
@@ -236,6 +236,47 @@ export default function SpaceSettingsModal() {
             setRolesMessage('Role deleted successfully!');
         } catch (err) {
             setRolesMessage('Failed to delete role');
+        }
+    };
+
+    const handleToggleRoleMember = async (member, roleId) => {
+        const hasRole = member.customRoles?.some(r => r.id === roleId);
+        const roleObj = spaceRoles.find(r => r.id === roleId);
+
+        // Optimistic UI update
+        const nextRoles = hasRole
+            ? (member.customRoles || []).filter(r => r.id !== roleId)
+            : [...(member.customRoles || []), roleObj].filter(Boolean);
+
+        const updatedMembers = activeSpace.members?.map(m => {
+            if (m.id === member.id) return { ...m, customRoles: nextRoles };
+            return m;
+        }) || [];
+
+        const updatedSpaces = useSpacesStore.getState().spaces.map(s =>
+            s.id === activeSpace.id ? { ...s, members: updatedMembers } : s
+        );
+        useSpacesStore.setState({ spaces: updatedSpaces });
+        setActiveSpace({ ...activeSpace, members: updatedMembers });
+
+        try {
+            if (hasRole) {
+                await api.roles.removeCustomRole(activeSpace.id, member.userId, roleId);
+            } else {
+                await api.roles.assignCustomRole(activeSpace.id, member.userId, roleId);
+            }
+        } catch (err) {
+            console.error('Failed to toggle member role:', err);
+            // Revert
+            const revertedMembers = activeSpace.members?.map(m => {
+                if (m.id === member.id) return { ...m, customRoles: member.customRoles };
+                return m;
+            }) || [];
+            const revertedSpaces = useSpacesStore.getState().spaces.map(s =>
+                s.id === activeSpace.id ? { ...s, members: revertedMembers } : s
+            );
+            useSpacesStore.setState({ spaces: revertedSpaces });
+            setActiveSpace({ ...activeSpace, members: revertedMembers });
         }
     };
 
@@ -477,6 +518,38 @@ export default function SpaceSettingsModal() {
                                                         ))}
                                                     </div>
                                                 </div>
+
+                                                {/* Assigned Members - only for existing custom roles */}
+                                                {selectedRole !== 'new' && !selectedRole.isSystemDefault && (
+                                                    <div>
+                                                        <label className="block font-bold mb-2 text-sm flex items-center gap-1.5">
+                                                            <Users size={14} /> Assigned Members
+                                                        </label>
+                                                        <div className="border-2 border-black rounded-xl p-3 bg-gray-50 max-h-[180px] overflow-y-auto space-y-1">
+                                                            {activeSpace.members?.filter(m => m.role !== 'Owner').length === 0 ? (
+                                                                <p className="text-xs text-gray-400 text-center py-2">No members to assign</p>
+                                                            ) : (
+                                                                activeSpace.members?.filter(m => m.role !== 'Owner').map(member => {
+                                                                    const isAssigned = member.customRoles?.some(r => r.id === selectedRole.id);
+                                                                    return (
+                                                                        <Checkbox
+                                                                            key={member.id}
+                                                                            checked={isAssigned}
+                                                                            onChange={() => handleToggleRoleMember(member, selectedRole.id)}
+                                                                            className="!p-1.5 hover:!bg-purple-50 !gap-2.5"
+                                                                        >
+                                                                            <Avatar user={member} size="xs" />
+                                                                            <div className="min-w-0 flex-1">
+                                                                                <span className="text-xs font-bold text-gray-800 block truncate leading-tight">{member.name}</span>
+                                                                                <span className="text-[10px] text-gray-400 block truncate leading-tight">@{member.username} · {member.role}</span>
+                                                                            </div>
+                                                                        </Checkbox>
+                                                                    );
+                                                                })
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
 
                                                 {rolesMessage && (
                                                     <div className={`text-xs font-bold ${rolesMessage.includes('successfully') ? 'text-green-650' : 'text-red-500'}`}>
