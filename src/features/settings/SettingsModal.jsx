@@ -116,7 +116,34 @@ export default function SettingsModal() {
     const [loadingRequests, setLoadingRequests] = useState(false);
     const [pendingInvitations, setPendingInvitations] = useState([]);
     const [loadingInvitations, setLoadingInvitations] = useState(false);
+    const [notificationSettings, setNotificationSettings] = useState({
+        email: true,
+        push: true,
+        invites: true,
+        mentions: false
+    });
     const fileInputRef = useRef(null);
+
+    useEffect(() => {
+        if (isSettingsModalOpen) {
+            const saved = localStorage.getItem('notification_settings');
+            if (saved) {
+                try {
+                    setNotificationSettings(JSON.parse(saved));
+                } catch (e) {
+                    console.error('Failed to parse notification settings', e);
+                }
+            }
+        }
+    }, [isSettingsModalOpen]);
+
+    const handleToggleSetting = (key) => {
+        setNotificationSettings(prev => {
+            const next = { ...prev, [key]: !prev[key] };
+            localStorage.setItem('notification_settings', JSON.stringify(next));
+            return next;
+        });
+    };
 
     useEffect(() => {
         if (user?.id && isSettingsModalOpen) {
@@ -431,10 +458,15 @@ export default function SettingsModal() {
                         <div className="space-y-6">
                             <h3 className="text-xl font-black">Notifications</h3>
                             <div className="bg-white border-2 border-black rounded-2xl p-6 space-y-4">
-                                {[{ label: 'Email notifications', desc: 'Receive updates via email' }, { label: 'Push notifications', desc: 'Browser push notifications' }, { label: 'Space invites', desc: 'When someone invites you' }, { label: 'Chat mentions', desc: 'When mentioned in chat' }].map((item, i) => (
-                                    <div key={i} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                                {[
+                                    { key: 'email', label: 'Email notifications', desc: 'Receive updates via email' },
+                                    { key: 'push', label: 'Push notifications', desc: 'Browser push notifications' },
+                                    { key: 'invites', label: 'Space invites', desc: 'When someone invites you' },
+                                    { key: 'mentions', label: 'Chat mentions', desc: 'When mentioned in chat' }
+                                ].map((item) => (
+                                    <div key={item.key} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                                         <div><p className="font-bold">{item.label}</p><p className="text-sm text-gray-500">{item.desc}</p></div>
-                                        <Toggle checked={i < 2} onChange={() => { }} />
+                                        <Toggle checked={!!notificationSettings[item.key]} onChange={() => handleToggleSetting(item.key)} />
                                     </div>
                                 ))}
                             </div>

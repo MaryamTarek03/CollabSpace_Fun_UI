@@ -117,3 +117,36 @@ Currently, the database stores a single `ThumbnailColor` string, but web interfa
 ### Proposed Backend Upgrades
 * **Dto & Validation Change**: Enable the `ThumbnailColor` input to accept either standard Hex color codes or structured linear gradient properties (e.g., as JSON blocks or raw CSS gradient strings).
 * **Endpoints**: Enhance `POST /api/spaces` and `PATCH /api/spaces/{id}/thumbnail` to support parsing multi-color stop strings (e.g., `linear-gradient(...)`) without triggering invalid data validation errors.
+
+---
+
+## 6. User Notification Settings & Preferences
+Users need the ability to customize which updates they receive via various channels (e.g., email, push notifications, space invites, chat mentions).
+
+### Proposed Backend Changes
+* **Database Upgrades**:
+  Add a `NotificationSettings` or `NotificationPreferences` entity linked 1:1 to the User account.
+  Fields:
+  * `emailNotifications` (boolean, default: true)
+  * `pushNotifications` (boolean, default: true)
+  * `spaceInvites` (boolean, default: true)
+  * `chatMentions` (boolean, default: true)
+* **Endpoints**:
+  * `GET /api/profile/notifications`: Retrieve current user notification preferences.
+  * `PATCH /api/profile/notifications`: Update one or more notification preference fields.
+* **Schema (NotificationSettingsDto)**:
+  ```json
+  {
+    "emailNotifications": true,
+    "pushNotifications": true,
+    "spaceInvites": true,
+    "chatMentions": true
+  }
+  ```
+
+### Frontend Integration
+* **Update `ApiUserRepository.js`**:
+  Add `getNotificationSettings()` and `updateNotificationSettings(settings)` to fetch/update from the new profile endpoints.
+* **Synchronize with UI**:
+  Remove local storage fallback inside `SettingsModal.jsx` and fetch/persist settings directly through the API endpoints.
+
