@@ -39,5 +39,6 @@ export function createInvite(data = {}) {
         expiresAt: data.expiresAt || null,
         time: data.time || '',
         space: data.space || null,
+        invitedUser: data.invitedUser || null,
     };
 }

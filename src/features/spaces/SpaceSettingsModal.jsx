@@ -302,18 +302,36 @@ export default function SpaceSettingsModal() {
         </button>
     );
 
-    const UserListItem = ({ user: u, action, actionLabel, variant = 'blue' }) => (
-        <div className={`flex items-center justify-between p-3 ${variant === 'red' ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'} border-2 rounded-xl`}>
-            <div className="flex items-center gap-3">
-                <Avatar user={{ name: u.name, avatarImage: u.avatarImage, avatarColor: u.avatarColor }} size="sm" />
-                <div>
-                    <p className="font-bold">{u.name}</p>
-                    <p className="text-xs text-gray-500">@{u.username} • {new Date(u.createdAt).toLocaleDateString()}</p>
+    const UserListItem = ({ user: item, action, actionLabel, variant = 'blue' }) => {
+        const u = item.invitedUser ? {
+            name: item.invitedUser.displayName || item.invitedUser.username || 'Unknown',
+            username: item.invitedUser.username || 'unknown',
+            avatarImage: item.invitedUser.avatarUrl,
+            avatarColor: item.invitedUser.avatarColor,
+            date: item.createdAt
+        } : {
+            name: item.name || 'Unknown',
+            username: item.username || 'unknown',
+            avatarImage: item.avatarImage || item.avatarUrl,
+            avatarColor: item.avatarColor,
+            date: item.bannedOn || item.createdAt
+        };
+
+        const displayDate = u.date ? new Date(u.date).toLocaleDateString() : '';
+
+        return (
+            <div className={`flex items-center justify-between p-3 ${variant === 'red' ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'} border-2 rounded-xl`}>
+                <div className="flex items-center gap-3">
+                    <Avatar user={{ name: u.name, avatarImage: u.avatarImage, avatarColor: u.avatarColor }} size="sm" />
+                    <div>
+                        <p className="font-bold">{u.name}</p>
+                        <p className="text-xs text-gray-500">@{u.username}{displayDate ? ` • ${displayDate}` : ''}</p>
+                    </div>
                 </div>
+                <Button onClick={action} variant={variant === 'red' ? 'success' : 'danger'} size="sm">{actionLabel}</Button>
             </div>
-            <Button onClick={action} variant={variant === 'red' ? 'success' : 'danger'} size="sm">{actionLabel}</Button>
-        </div>
-    );
+        );
+    };
 
     return (
         <ModalWrapper isOpen={isSpaceSettingsModalOpen} onClose={closeSpaceSettingsModal} size="xl" zLevel="medium" className="!max-w-4xl !h-[650px]">
