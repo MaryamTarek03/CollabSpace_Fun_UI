@@ -89,7 +89,7 @@ export default function AppLayout() {
                 {/* Loading State (only on dashboard) */}
                 {spacesLoading && isDashboard && (
                     <div className="flex items-center justify-center h-64">
-                        <div className="animate-spin w-12 h-12 border-4 border-black border-t-yellow-300 rounded-full"></div>
+                        <div className="animate-spin w-12 h-12 border-4 border-black border-t-accent rounded-full"></div>
                     </div>
                 )}
 

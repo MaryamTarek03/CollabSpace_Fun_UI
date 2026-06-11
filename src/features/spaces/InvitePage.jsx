@@ -17,7 +17,7 @@ export default function InvitePage() {
 
     return (
         <div className="min-h-screen bg-[#FFFDF5] flex items-center justify-center">
-            <div className="animate-spin w-12 h-12 border-4 border-black border-t-yellow-300 rounded-full"></div>
+            <div className="animate-spin w-12 h-12 border-4 border-black border-t-accent rounded-full"></div>
         </div>
     );
 }

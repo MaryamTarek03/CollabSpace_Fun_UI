@@ -164,7 +164,7 @@ export default function NotificationsPanel({ isOpen, onClose, triggerRef }) {
             <div className="h-[75vh] overflow-y-auto p-3 space-y-2">
                 {loading ? (
                     <div className="flex items-center justify-center py-8">
-                        <div className="w-8 h-8 border-4 border-black border-t-yellow-300 rounded-full animate-spin"></div>
+                        <div className="w-8 h-8 border-4 border-black border-t-accent rounded-full animate-spin"></div>
                     </div>
                 ) : notifications.length === 0 ? (
                     <div className="text-center py-8 text-gray-400">

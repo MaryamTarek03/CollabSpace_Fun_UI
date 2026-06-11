@@ -644,7 +644,7 @@ export default function FilesModal() {
                 <div className="flex-1 overflow-y-auto p-6 bg-[url('https://www.transparenttextures.com/patterns/grid-me.png')]">
                     {loading ? (
                         <div className="flex items-center justify-center h-full">
-                            <div className="animate-spin w-8 h-8 border-4 border-black border-t-yellow-300 rounded-full"></div>
+                            <div className="animate-spin w-8 h-8 border-4 border-black border-t-accent rounded-full"></div>
                         </div>
                     ) : (
                         <div className={viewMode === 'grid' ? "grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6" : "flex flex-col gap-2 mb-6"}>
