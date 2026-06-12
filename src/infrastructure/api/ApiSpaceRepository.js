@@ -115,7 +115,9 @@ export function createApiSpaceRepository() {
 
         async getRequests(spaceId) {
             const data = await httpClient.get(`/spaces/${spaceId}/invites/join-requests`);
-            return data && data.data ? data.data : (Array.isArray(data) ? data : []);
+            const requestsList = data && data.data ? data.data : (Array.isArray(data) ? data : []);
+            const { JoinRequestMapper } = await import('../../domain/mappers/index.js');
+            return JoinRequestMapper.fromApiList(requestsList);
         },
 
         async approveRequest(spaceId, requestId) {

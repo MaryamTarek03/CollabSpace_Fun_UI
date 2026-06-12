@@ -263,8 +263,11 @@ export const NotificationMapper = {
                            text.toLowerCase().includes('declined') || 
                            text.toLowerCase().includes('rejected') || 
                            text.toLowerCase().includes('approved');
+        const isJoinRequest = text.toLowerCase().includes('requested to join');
 
-        if (isResponse) {
+        if (isJoinRequest) {
+            type = 'join_request';
+        } else if (isResponse) {
             type = 'invite_response';
         } else if (type.endsWith('invite') || type === 'invite') {
             type = 'invite';
@@ -280,13 +283,22 @@ export const NotificationMapper = {
 
         const relType = data.relatedEntityType ? data.relatedEntityType.toLowerCase() : '';
         const inviteId = relType.includes('invite') ? data.relatedEntityId : (data.inviteId || null);
-        const spaceId = (relType.includes('space') && !relType.includes('invite')) ? data.relatedEntityId : (data.spaceId || null);
+        
+        let spaceId = (relType.includes('space') && !relType.includes('invite')) ? data.relatedEntityId : (data.spaceId || null);
+        
+        // Extract spaceId from request notification text if not explicitly present
+        if (isJoinRequest && !spaceId) {
+            spaceId = data.spaceId || data.data?.spaceId || data.metadata?.spaceId || null;
+        }
+
+        const requestId = isJoinRequest ? (data.relatedEntityId || data.inviteId || data.id) : null;
 
         return createNotification({
             ...data,
             type,
             inviteId,
             spaceId,
+            requestId,
             read: data.isRead ?? data.read ?? false,
             text: data.body || data.text || data.message || '',
             author: data.title || data.author || '',
@@ -350,8 +362,15 @@ export const FolderMapper = {
 // ============ JOIN REQUEST MAPPER ============
 export const JoinRequestMapper = {
     fromApi(data) {
+        if (!data) return null;
         return createJoinRequest({
             ...data,
+            userId: data.userId || data.user?.id || null,
+            userName: data.userName || data.user?.displayName || data.user?.username || data.name || '',
+            userEmail: data.userEmail || data.user?.email || data.email || '',
+            userAvatar: data.userAvatar || data.user?.avatarColor || '#3b82f6',
+            userAvatarImage: data.userAvatarImage || data.user?.avatarUrl || data.avatarImage || null,
+            status: (data.status || 'pending').toLowerCase(),
             time: formatRelativeTime(data.createdAt || new Date()),
         });
     },

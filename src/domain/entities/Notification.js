@@ -35,6 +35,7 @@ export function createNotification(data = {}) {
         target: data.target || '',
         spaceId: data.spaceId || null,
         inviteId: data.inviteId || null,
+        requestId: data.requestId || null,
         action: data.action || null,
         read: data.read ?? false,
         data: data.data || {},
