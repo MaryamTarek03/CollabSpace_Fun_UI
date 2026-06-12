@@ -110,13 +110,7 @@ export function createApiSpaceRepository() {
         },
 
         async join(spaceId, userId) {
-            try {
-                // Try dev endpoint for direct auto-join during development/local testing
-                return await httpClient.post(`/dev/spaces/${spaceId}/members/${userId}`);
-            } catch (err) {
-                // Fallback to submitting join request
-                return httpClient.post(`/spaces/${spaceId}/invites/join-requests`, {});
-            }
+            return httpClient.post(`/spaces/${spaceId}/invites/join-requests`, {});
         },
 
         async getRequests(spaceId) {
