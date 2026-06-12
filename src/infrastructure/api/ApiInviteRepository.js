@@ -27,7 +27,7 @@ export function createApiInviteRepository() {
         },
 
         async getByCode(code) {
-            const data = await httpClient.get(`/spaces/invites/codes/${code}/preview`);
+            const data = await httpClient.get(`/spaces/invites/codes/${code}`);
             return InviteMapper.fromApi({
                 id: code,
                 code: code,
@@ -50,7 +50,7 @@ export function createApiInviteRepository() {
         async getMyJoinRequests() {
             const data = await httpClient.get('/spaces/my-join-requests');
             const requestsList = data && data.data ? data.data : (Array.isArray(data) ? data : []);
-            
+
             const mappedRequests = await Promise.all(
                 requestsList.map(async (req) => {
                     let spaceName = 'Unknown Space';
@@ -68,7 +68,7 @@ export function createApiInviteRepository() {
                     };
                 })
             );
-            
+
             const { JoinRequestMapper } = await import('../../domain/mappers/index.js');
             return JoinRequestMapper.fromApiList(mappedRequests);
         },

@@ -31,7 +31,19 @@ export default function InviteModal() {
     const { user } = useAuthStore();
 
     const currentUserMember = activeSpace?.members?.find(m => m.userId === user?.id);
-    const canManageSpace = ADMIN_ROLES.includes(currentUserMember?.role);
+    
+    // Helper to check if member has a permission
+    const hasPermission = (member, permissionName) => {
+        if (!member) return false;
+        // Owners and Admins automatically have all permissions
+        if (member.role === 'Owner' || member.role === 'Admin') return true;
+        // Check direct permissions
+        if (member.permissions?.includes(permissionName)) return true;
+        // Check custom roles permissions
+        return member.customRoles?.some(role => role.permissions?.includes(permissionName)) || false;
+    };
+
+    const canGenerateLinks = hasPermission(currentUserMember, 'InviteMembers');
 
     // Email Invite State
     const [inviteEmail, setInviteEmail] = useState('');
@@ -266,7 +278,7 @@ export default function InviteModal() {
                 <div className="flex-1 space-y-6">
                     <h3 className="font-bold text-lg mb-2 flex items-center gap-2"><Link size={20} /> Invite Links</h3>
 
-                    {canManageSpace ? (
+                    {canGenerateLinks ? (
                         !showLinkSettings ? (
                             <button
                                 onClick={() => setShowLinkSettings(true)}
@@ -328,7 +340,7 @@ export default function InviteModal() {
                         )
                     ) : (
                         <div className="text-center py-4 px-2 text-gray-500 font-medium text-xs bg-gray-50 rounded-xl border border-gray-200">
-                            Only admins can generate invite links.
+                            Only members with invite permissions can generate invite links.
                         </div>
                     )}
 
