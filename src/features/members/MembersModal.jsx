@@ -282,19 +282,27 @@ export default function MembersModal() {
                                 <div className="text-center py-8 text-gray-400 font-bold">No pending join requests</div>
                             ) : (
                                 requests.map(req => (
-                                    <div key={req.id} className="flex items-center justify-between bg-white border-2 border-black rounded-xl p-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                                        <div className="flex items-center gap-3">
-                                            <Avatar user={{ name: req.name, avatarImage: req.avatarImage }} size="md" />
-                                            <div>
-                                                <p className="font-bold">{req.name}</p>
-                                                <p className="text-xs text-gray-500">@{req.username}</p>
-                                                <p className="text-xs text-gray-400">Requested {new Date(req.createdAt).toLocaleDateString()}</p>
+                                    <div key={req.id} className="flex flex-col bg-white border-2 border-black rounded-xl p-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] gap-3">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
+                                                <Avatar user={{ name: req.name, avatarImage: req.avatarImage }} size="md" />
+                                                <div>
+                                                    <p className="font-bold">{req.name}</p>
+                                                    <p className="text-xs text-gray-500">@{req.username}</p>
+                                                    <p className="text-xs text-gray-400">Requested {new Date(req.createdAt).toLocaleDateString()}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <Button variant="success" size="sm" onClick={() => handleApprove(req.id)} icon={<Check size={16} />} />
+                                                <Button variant="danger" size="sm" onClick={() => handleReject(req.id)} icon={<X size={16} />} />
                                             </div>
                                         </div>
-                                        <div className="flex gap-2">
-                                            <Button variant="success" size="sm" onClick={() => handleApprove(req.id)} icon={<Check size={16} />} />
-                                            <Button variant="danger" size="sm" onClick={() => handleReject(req.id)} icon={<X size={16} />} />
-                                        </div>
+                                        {req.message && (
+                                            <div className="p-3 bg-gray-50 border-2 border-black border-dashed rounded-xl text-sm font-medium text-gray-700">
+                                                <span className="block text-xs font-black text-gray-400 uppercase mb-1">Message:</span>
+                                                "{req.message}"
+                                            </div>
+                                        )}
                                     </div>
                                 ))
                             )}

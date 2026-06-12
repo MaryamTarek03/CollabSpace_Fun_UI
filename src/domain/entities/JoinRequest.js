@@ -36,5 +36,15 @@ export function createJoinRequest(data = {}) {
         createdAt: data.createdAt || new Date().toISOString(),
         respondedAt: data.respondedAt || null,
         time: data.time || '',
+        // UI compatibility properties
+        name: data.userName || data.name || '',
+        username: data.username || '',
+        avatarImage: data.userAvatarImage || data.avatarImage || null,
+        message: data.message || null,
+        // Space details
+        spaceName: data.spaceName || '',
+        spaceDescription: data.spaceDescription || '',
+        spaceThumbnail: data.spaceThumbnail || null,
+        spaceOwner: data.spaceOwner || '',
     };
 }

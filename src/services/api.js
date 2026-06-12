@@ -52,7 +52,7 @@ export const spaces = {
     create: (data) => spaceRepo.create(data),
     update: (id, data) => spaceRepo.update(id, data),
     delete: (id) => spaceRepo.delete(id),
-    join: (spaceId, userId) => spaceRepo.join(spaceId, userId),
+    join: (spaceId, userId, message) => spaceRepo.join(spaceId, userId, message),
     getRequests: (spaceId) => spaceRepo.getRequests(spaceId),
     approveRequest: (spaceId, requestId) => spaceRepo.approveRequest(spaceId, requestId),
     rejectRequest: (spaceId, requestId) => spaceRepo.rejectRequest(spaceId, requestId),
@@ -84,11 +84,10 @@ export const invites = {
     getByUser: (userId) => inviteRepo.getByUser(userId),
 };
 
-// Space request management
 export const requests = {
     cancel: (spaceId, requestId) => spaceRepo.rejectRequest(spaceId, requestId),
     getMy: (userId) => inviteRepo.getMyJoinRequests(),
-    cancelMy: (userId, requestId) => Promise.resolve({ success: true }),
+    cancelMy: (spaceId, requestId) => spaceRepo.cancelMyJoinRequest(spaceId, requestId),
 };
 
 // ============ NOTIFICATIONS ============

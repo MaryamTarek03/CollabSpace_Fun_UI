@@ -126,7 +126,7 @@ function createSpaceService(spaceRepo, memberRepo) {
         create: (data) => spaceRepo.create(data),
         update: (id, data) => spaceRepo.update(id, data),
         delete: (id) => spaceRepo.delete(id),
-        join: (spaceId, userId) => spaceRepo.join(spaceId, userId),
+        join: (spaceId, userId, message) => spaceRepo.join(spaceId, userId, message),
         getRequests: (spaceId) => spaceRepo.getRequests(spaceId),
         approveRequest: (spaceId, requestId) => spaceRepo.approveRequest(spaceId, requestId),
         rejectRequest: (spaceId, requestId) => spaceRepo.rejectRequest(spaceId, requestId),

@@ -128,6 +128,17 @@ export function createApiSpaceRepository() {
             return httpClient.put(`/spaces/${spaceId}/invites/join-requests/${requestId}/respond`, { accept: false });
         },
 
+        async cancelMyJoinRequest(spaceId, requestId) {
+            try {
+                return await httpClient.delete(`/spaces/${spaceId}/invites/join-requests/${requestId}`);
+            } catch (err) {
+                if (err.status === 404 || err.message?.includes('404')) {
+                    return await httpClient.delete(`/spaces/${spaceId}/invites/join-requests`);
+                }
+                throw err;
+            }
+        },
+
         async transferOwnership(spaceId, currentOwnerId, newOwnerId) {
             return httpClient.put(`/spaces/${spaceId}/ownership/transfer`, {
                 newOwnerId

@@ -53,18 +53,21 @@ export function createApiInviteRepository() {
 
             const mappedRequests = await Promise.all(
                 requestsList.map(async (req) => {
-                    let spaceName = 'Unknown Space';
+                    let spaceDetails = null;
                     try {
                         const space = await httpClient.get(`/spaces/${req.spaceId}`);
                         if (space) {
-                            spaceName = space.name || space.spaceName || 'Unknown Space';
+                            spaceDetails = space;
                         }
                     } catch (e) {
-                        console.error('Failed to fetch space name for join request:', e);
+                        console.error('Failed to fetch space details for join request:', e);
                     }
                     return {
                         ...req,
-                        spaceName
+                        spaceName: spaceDetails?.name || 'Unknown Space',
+                        spaceDescription: spaceDetails?.description || '',
+                        spaceThumbnail: spaceDetails?.thumbnailUrl || null,
+                        spaceOwner: spaceDetails?.ownerName || 'Unknown'
                     };
                 })
             );

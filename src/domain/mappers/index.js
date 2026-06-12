@@ -367,11 +367,18 @@ export const JoinRequestMapper = {
             ...data,
             userId: data.userId || data.user?.id || null,
             userName: data.userName || data.user?.displayName || data.user?.username || data.name || '',
+            username: data.username || data.user?.username || '',
             userEmail: data.userEmail || data.user?.email || data.email || '',
             userAvatar: data.userAvatar || data.user?.avatarColor || '#3b82f6',
             userAvatarImage: data.userAvatarImage || data.user?.avatarUrl || data.avatarImage || null,
             status: (data.status || 'pending').toLowerCase(),
+            message: data.message || null,
             time: formatRelativeTime(data.createdAt || new Date()),
+            // Space details
+            spaceName: data.spaceName || '',
+            spaceDescription: data.spaceDescription || '',
+            spaceThumbnail: data.spaceThumbnail || null,
+            spaceOwner: data.spaceOwner || '',
         });
     },
 

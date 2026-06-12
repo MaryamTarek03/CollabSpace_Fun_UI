@@ -218,8 +218,8 @@ export default function SettingsModal() {
         setShowDeleteConfirm(false);
     };
 
-    const handleCancelRequest = async (requestId) => {
-        try { await api.requests.cancelMy(user.id, requestId); setPendingRequests(prev => prev.filter(r => r.id !== requestId)); } catch { }
+    const handleCancelRequest = async (spaceId, requestId) => {
+        try { await api.requests.cancelMy(spaceId, requestId); setPendingRequests(prev => prev.filter(r => r.id !== requestId)); } catch { }
     };
 
     const handleAcceptInvitation = async (inviteId) => {
@@ -393,9 +393,31 @@ export default function SettingsModal() {
                                 {loadingRequests ? <div className="flex justify-center py-8"><Loader className="animate-spin text-gray-400" /></div>
                                     : pendingRequests.length === 0 ? <div className="text-center py-8 text-gray-500"><Clock size={32} className="mx-auto mb-2 opacity-50" /><p>No pending requests</p></div>
                                         : <div className="space-y-3">{pendingRequests.map(req => (
-                                            <div key={req.id} className="flex items-center justify-between p-4 bg-orange-50 border-2 border-orange-300 rounded-xl">
-                                                <div><p className="font-bold">{req.spaceName}</p><p className="text-xs text-gray-500">Waiting for approval...</p></div>
-                                                <Button onClick={() => handleCancelRequest(req.id)} variant="danger" size="sm">Cancel</Button>
+                                            <div key={req.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-orange-50 border-2 border-orange-300 rounded-xl gap-4">
+                                                <div className="flex items-start gap-4">
+                                                    <div 
+                                                        className="w-12 h-12 rounded-xl border-2 border-black flex-shrink-0 flex items-center justify-center font-bold text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-lg"
+                                                        style={{ 
+                                                            backgroundColor: req.spaceThumbnail && req.spaceThumbnail.startsWith('#') ? req.spaceThumbnail : '#f97316'
+                                                        }}
+                                                    >
+                                                        {req.spaceThumbnail && !req.spaceThumbnail.startsWith('#') ? (
+                                                            <img src={req.spaceThumbnail} alt={req.spaceName} className="w-full h-full object-cover rounded-lg" />
+                                                        ) : (
+                                                            (req.spaceName || 'S').charAt(0).toUpperCase()
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-bold text-lg">{req.spaceName}</p>
+                                                        {req.spaceDescription && <p className="text-sm text-gray-600 mb-1">{req.spaceDescription}</p>}
+                                                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                                                            <span>Owner: <strong className="text-gray-700">{req.spaceOwner || 'Unknown'}</strong></span>
+                                                            <span>•</span>
+                                                            <span>Requested: <strong>{req.time}</strong></span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <Button onClick={() => handleCancelRequest(req.spaceId, req.id)} variant="danger" size="sm">Cancel Request</Button>
                                             </div>
                                         ))}</div>}
                             </div>
