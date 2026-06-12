@@ -305,6 +305,7 @@ export const InviteMapper = {
         if (!data) return null;
         return createInvite({
             ...data,
+            space: SpaceMapper.fromApi(data.space),
             inviterId: data.inviterId || data.inviter?.id || null,
             inviterName: data.inviterName || data.inviter?.displayName || data.inviter?.username || '',
             time: formatRelativeTime(data.createdAt || new Date()),

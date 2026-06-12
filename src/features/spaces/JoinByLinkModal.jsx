@@ -192,7 +192,9 @@ export const JoinByLinkModal = () => {
                                     {isImageThumbnail(previewSpace.thumbnail) && (
                                         <img src={getSpaceThumbnailUrl(previewSpace.thumbnail)} alt={previewSpace.name} className="w-full h-full object-cover" />
                                     )}
-                                    {!previewSpace.thumbnail && <span className="text-2xl font-bold">{previewSpace.name[0]}</span>}
+                                    {!isImageThumbnail(previewSpace.thumbnail) && (
+                                        <span className="text-2xl font-bold text-white drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.4)]">{previewSpace.name?.[0]?.toUpperCase()}</span>
+                                    )}
                                 </div>
                                 <div>
                                     <h3 className="font-black text-xl">{previewSpace.name}</h3>
