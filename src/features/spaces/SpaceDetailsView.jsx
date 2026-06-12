@@ -127,7 +127,7 @@ export default function SpaceDetailsView() {
 
     const onTextChat = () => {
         setActiveChatSpace(activeSpace);
-        navigate(`/dashboard/chat/${activeSpace.id}`);
+        navigate(`/dashboard/chat/${activeSpace.id}`, { state: { fromSpace: true } });
     };
 
     const handleLeaveSpace = () => {

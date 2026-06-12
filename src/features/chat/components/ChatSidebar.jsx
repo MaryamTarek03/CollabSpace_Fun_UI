@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Hash, Plus, Edit2, Trash2, Check, X } from 'lucide-react';
 import { useChatStore, useAuthStore, useUIStore } from '../../../store';
 
 export default function ChatSidebar() {
     const navigate = useNavigate();
+    const location = useLocation();
     const { activeChatSpace, setActiveChatSpace, channels, activeChannel, setActiveChannel, createChannel, updateChannel, deleteChannel, members } = useChatStore();
     const { user } = useAuthStore();
     const { openConfirmation } = useUIStore();
@@ -63,7 +64,20 @@ export default function ChatSidebar() {
     return (
         <div className="w-80 bg-white border-2 border-black rounded-3xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] overflow-hidden hidden lg:flex flex-col">
             <div className="p-6 border-b-2 border-black bg-accent-50 flex items-center gap-2">
-                <button onClick={() => { setActiveChatSpace(null); navigate('/dashboard/chat'); }} className="p-1 hover:bg-white rounded-lg transition-colors"><ArrowLeft size={20} /></button>
+                <button 
+                    onClick={() => {
+                        const spaceId = activeChatSpace?.id;
+                        setActiveChatSpace(null);
+                        if (location.state?.fromSpace && spaceId) {
+                            navigate(`/dashboard/spaces/${spaceId}`);
+                        } else {
+                            navigate('/dashboard/chat');
+                        }
+                    }} 
+                    className="p-1 hover:bg-white rounded-lg transition-colors"
+                >
+                    <ArrowLeft size={20} />
+                </button>
                 <h2 className="text-xl font-black truncate flex-1">{activeChatSpace.name}</h2>
             </div>
 

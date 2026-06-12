@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { MessageSquare, ArrowLeft, X, Forward, Hash } from 'lucide-react';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
@@ -12,6 +12,7 @@ import { isImageThumbnail, getSpaceThumbnailStyle, getSpaceThumbnailUrl } from '
 export default function ChatView() {
     const { spaceId, channelId } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
 
     // Get state directly from stores
     const {
@@ -34,11 +35,15 @@ export default function ChatView() {
 
     // Set active chat space based on route param
     useEffect(() => {
-        if (spaceId && (!activeChatSpace || activeChatSpace.id !== spaceId)) {
-            const space = spaces.find(s => s.id === spaceId);
-            if (space) {
-                setActiveChatSpace(space);
+        if (spaceId) {
+            if (!activeChatSpace || activeChatSpace.id !== spaceId) {
+                const space = spaces.find(s => s.id === spaceId);
+                if (space) {
+                    setActiveChatSpace(space);
+                }
             }
+        } else {
+            setActiveChatSpace(null);
         }
     }, [spaceId, activeChatSpace, spaces, setActiveChatSpace]);
 
@@ -172,7 +177,20 @@ export default function ChatView() {
             <div className="flex-1 bg-white border-2 border-black rounded-3xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] overflow-hidden flex flex-col relative">
                 <div className="p-4 border-b-2 border-black flex justify-between items-center bg-gray-50">
                     <div className="flex items-center gap-3">
-                        <button onClick={() => setActiveChatSpace(null)} className="lg:hidden p-2 hover:bg-white rounded-lg"><ArrowLeft size={20} /></button>
+                        <button 
+                            onClick={() => {
+                                const spaceId = activeChatSpace?.id;
+                                setActiveChatSpace(null);
+                                if (location.state?.fromSpace && spaceId) {
+                                    navigate(`/dashboard/spaces/${spaceId}`);
+                                } else {
+                                    navigate('/dashboard/chat');
+                                }
+                            }} 
+                            className="lg:hidden p-2 hover:bg-white rounded-lg"
+                        >
+                            <ArrowLeft size={20} />
+                        </button>
                         <div className="w-10 h-10 rounded-xl border-2 border-black flex items-center justify-center font-bold text-lg overflow-hidden" style={getSpaceThumbnailStyle(activeChatSpace.thumbnail)}>
                             {isImageThumbnail(activeChatSpace.thumbnail) ? (
                                 <img src={getSpaceThumbnailUrl(activeChatSpace.thumbnail)} alt={activeChatSpace.name} className="w-full h-full object-cover" />
