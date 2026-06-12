@@ -30,6 +30,7 @@ export const UserMapper = {
         if (!data) return null;
         return createUser({
             ...data,
+            avatarImage: data.avatarImage || data.avatarUrl || null,
             name: data.displayName || data.name || data.username || '',
             isPrivate: data.privacy === 'Private' || data.isPrivate || false,
         });
@@ -114,8 +115,15 @@ export const MemberMapper = {
         if (!data) return null;
         const role = data.baseRole || data.role || 'member';
         const customRoles = data.roles || [];
+        const avatarImage = data.avatarImage || data.avatarUrl || data.user?.avatarImage || data.user?.avatarUrl || null;
+        const avatarColor = data.avatarColor || data.avatar || data.user?.avatarColor || data.user?.avatarColor || null;
+        const name = data.displayName || data.name || data.user?.displayName || data.user?.name || data.username || data.user?.username || '';
+        
         return createMember({
             ...data,
+            name,
+            avatarImage,
+            avatarColor,
             role,
             customRoles,
         });
