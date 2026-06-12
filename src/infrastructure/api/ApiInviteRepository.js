@@ -66,8 +66,7 @@ export function createApiInviteRepository() {
                         ...req,
                         spaceName: spaceDetails?.name || 'Unknown Space',
                         spaceDescription: spaceDetails?.description || '',
-                        spaceThumbnail: spaceDetails?.thumbnailUrl || null,
-                        spaceOwner: spaceDetails?.ownerName || 'Unknown'
+                        spaceThumbnail: spaceDetails?.thumbnailImageUrl || spaceDetails?.thumbnailColor || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                     };
                 })
             );

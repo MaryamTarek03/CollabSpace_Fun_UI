@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Settings, Bell, LogOut, User, Shield, Trash2, Save, Camera, ZoomIn, ZoomOut, Check, Clock, Loader, UserPlus } from 'lucide-react';
 import api from '../../services/api';
-import { formatDate, getImageUrl } from '../../shared/utils/helpers';
+import { formatDate, getImageUrl, getSpaceThumbnailStyle, isImageThumbnail } from '../../shared/utils/helpers';
 import { useUIStore, useAuthStore, useSpacesStore } from '../../store';
 import ModalWrapper from '../../shared/components/ModalWrapper';
 import Button, { CloseButton } from '../../shared/components/Button';
@@ -396,23 +396,15 @@ export default function SettingsModal() {
                                             <div key={req.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-orange-50 border-2 border-orange-300 rounded-xl gap-4">
                                                 <div className="flex items-start gap-4">
                                                     <div 
-                                                        className="w-12 h-12 rounded-xl border-2 border-black flex-shrink-0 flex items-center justify-center font-bold text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-lg"
-                                                        style={{ 
-                                                            backgroundColor: req.spaceThumbnail && req.spaceThumbnail.startsWith('#') ? req.spaceThumbnail : '#f97316'
-                                                        }}
+                                                        className="w-12 h-12 rounded-xl border-2 border-black flex-shrink-0 flex items-center justify-center font-bold text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-lg overflow-hidden"
+                                                        style={getSpaceThumbnailStyle(req.spaceThumbnail)}
                                                     >
-                                                        {req.spaceThumbnail && !req.spaceThumbnail.startsWith('#') ? (
-                                                            <img src={req.spaceThumbnail} alt={req.spaceName} className="w-full h-full object-cover rounded-lg" />
-                                                        ) : (
-                                                            (req.spaceName || 'S').charAt(0).toUpperCase()
-                                                        )}
+                                                        {!isImageThumbnail(req.spaceThumbnail) && (req.spaceName || 'S').charAt(0).toUpperCase()}
                                                     </div>
                                                     <div>
                                                         <p className="font-bold text-lg">{req.spaceName}</p>
                                                         {req.spaceDescription && <p className="text-sm text-gray-600 mb-1">{req.spaceDescription}</p>}
                                                         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-                                                            <span>Owner: <strong className="text-gray-700">{req.spaceOwner || 'Unknown'}</strong></span>
-                                                            <span>•</span>
                                                             <span>Requested: <strong>{req.time}</strong></span>
                                                         </div>
                                                     </div>

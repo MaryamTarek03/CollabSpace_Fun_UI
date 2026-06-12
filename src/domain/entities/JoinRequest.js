@@ -45,6 +45,5 @@ export function createJoinRequest(data = {}) {
         spaceName: data.spaceName || '',
         spaceDescription: data.spaceDescription || '',
         spaceThumbnail: data.spaceThumbnail || null,
-        spaceOwner: data.spaceOwner || '',
     };
 }
