@@ -219,6 +219,7 @@ export default function ChatView() {
                     spaceName={activeChannel?.name || activeChatSpace.name}
                     selectedFiles={selectedFiles}
                     setSelectedFiles={setSelectedFiles}
+                    isSending={isUploading}
                 />
             </div>
 

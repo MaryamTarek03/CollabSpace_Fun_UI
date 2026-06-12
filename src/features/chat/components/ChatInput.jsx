@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, X, Reply, Paperclip, Image, FileText } from 'lucide-react';
+import { Send, X, Reply, Paperclip, Image, FileText, Loader2 } from 'lucide-react';
 import { useChatStore } from '../../../store';
 import MentionList from './MentionList';
 
@@ -9,7 +9,8 @@ export default function ChatInput({
     handleSendMessage,
     spaceName,
     selectedFiles,
-    setSelectedFiles
+    setSelectedFiles,
+    isSending = false
 }) {
     const { replyingTo, clearReplyingTo, members } = useChatStore();
     const [mentionFilter, setMentionFilter] = useState('');
@@ -223,10 +224,10 @@ export default function ChatInput({
                         />
                         <button
                             type="submit"
-                            disabled={!hasContent}
+                            disabled={!hasContent || isSending}
                             className="absolute right-2 top-2 bottom-2 aspect-square bg-accent border-2 border-black rounded-xl flex items-center justify-center hover:bg-accent-dark active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            <Send size={20} />
+                            {isSending ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
                         </button>
                     </div>
                 </form>

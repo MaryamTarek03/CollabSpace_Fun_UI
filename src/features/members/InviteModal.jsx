@@ -118,6 +118,7 @@ export default function InviteModal() {
 
     // ... existing email handling functions ...
     const handleAddInvite = () => {
+        setInviteSent(false);
         const value = inviteEmail.trim();
         if (!value) {
             setErrorMessage('Please enter an email or username');
@@ -172,7 +173,7 @@ export default function InviteModal() {
             });
             setInviteSent(true);
             setInviteEmails([]);
-            setTimeout(() => setInviteSent(false), 2000);
+            setTimeout(() => setInviteSent(false), 4000);
         } catch (err) {
             console.error('Failed to send invites:', err);
             setEmailError(true);
@@ -220,6 +221,16 @@ export default function InviteModal() {
                         </div>
                         {errorMessage && <div className="text-red-500 text-xs font-bold mt-2">{errorMessage}</div>}
                     </div>
+
+                    {inviteSent && (
+                        <div className="bg-green-50 border-2 border-green-500 rounded-xl p-4 text-green-700 flex items-center gap-3 animate-in slide-in-from-top-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                            <CheckCircle2 size={20} className="text-green-600 shrink-0" />
+                            <div>
+                                <p className="font-bold text-sm">Invites sent successfully! 🎉</p>
+                                <p className="text-xs font-medium">They will receive a notification to join the space.</p>
+                            </div>
+                        </div>
+                    )}
 
                     {inviteEmails.length > 0 && (
                         <div className="flex flex-wrap gap-2">
