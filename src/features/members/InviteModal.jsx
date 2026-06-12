@@ -118,19 +118,38 @@ export default function InviteModal() {
 
     // ... existing email handling functions ...
     const handleAddInvite = () => {
-        if (!inviteEmail || !inviteEmail.includes('@')) {
-            setErrorMessage('Please enter a valid email');
+        const value = inviteEmail.trim();
+        if (!value) {
+            setErrorMessage('Please enter an email or username');
             setTimeout(() => setErrorMessage(''), 2000);
             return;
         }
-        if (inviteEmails.includes(inviteEmail)) {
-            setErrorMessage('Email already added');
+
+        const isEmail = value.includes('@');
+        if (isEmail) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(value)) {
+                setErrorMessage('Please enter a valid email address');
+                setTimeout(() => setErrorMessage(''), 2000);
+                return;
+            }
+        } else {
+            const usernameRegex = /^[a-zA-Z0-9_.-]{3,30}$/;
+            if (!usernameRegex.test(value)) {
+                setErrorMessage('Username must be 3-30 chars (letters, numbers, _, ., -)');
+                setTimeout(() => setErrorMessage(''), 2000);
+                return;
+            }
+        }
+
+        if (inviteEmails.includes(value)) {
+            setErrorMessage('Already added to invite list');
             setTimeout(() => setErrorMessage(''), 2000);
             return;
         }
         setIsAddingInvite(true);
         setTimeout(() => {
-            setInviteEmails([...inviteEmails, inviteEmail]);
+            setInviteEmails([...inviteEmails, value]);
             setInviteEmail('');
             setIsAddingInvite(false);
             setEmailSuccess(true);
@@ -138,8 +157,8 @@ export default function InviteModal() {
         }, 500);
     };
 
-    const handleRemoveInvite = (email) => {
-        setInviteEmails(inviteEmails.filter(e => e !== email));
+    const handleRemoveInvite = (val) => {
+        setInviteEmails(inviteEmails.filter(e => e !== val));
     };
 
     const handleSendInvites = async () => {
@@ -177,14 +196,14 @@ export default function InviteModal() {
                 {/* Left Column: Email Invites */}
                 <div className="flex-1 space-y-6">
                     <div>
-                        <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Mail size={20} /> Invite by Email</h3>
+                        <h3 className="font-bold text-lg mb-4 flex items-center gap-2"><Mail size={20} /> Invite by Email or Username</h3>
                         <div className="w-full bg-white border-2 border-black rounded-xl p-2 flex items-center shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]">
                             <input
-                                type="email"
+                                type="text"
                                 value={inviteEmail}
                                 onChange={(e) => setInviteEmail(e.target.value)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleAddInvite()}
-                                placeholder="friend@example.com"
+                                placeholder="email or username"
                                 className="flex-1 px-4 text-sm font-mono font-medium focus:outline-none bg-transparent text-gray-600"
                             />
                             <Button
