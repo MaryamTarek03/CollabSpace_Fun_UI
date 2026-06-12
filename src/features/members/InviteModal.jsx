@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Link, Copy, Mail, CheckCircle2, Loader2, AlertCircle, UserPlus, Send, Clock, Hash, Trash2, ChevronDown, Plus } from 'lucide-react';
 import { useUIStore, useSpacesStore, useAuthStore } from '../../store';
+import { ADMIN_ROLES } from '../../shared/constants';
 import api from '../../services/api';
 import ModalWrapper from '../../shared/components/ModalWrapper';
 import Button, { CloseButton } from '../../shared/components/Button';
@@ -28,6 +29,9 @@ export default function InviteModal() {
     const { isInviteModalOpen, closeInviteModal } = useUIStore();
     const { activeSpace } = useSpacesStore();
     const { user } = useAuthStore();
+
+    const currentUserMember = activeSpace?.members?.find(m => m.userId === user?.id);
+    const canManageSpace = ADMIN_ROLES.includes(currentUserMember?.role);
 
     // Email Invite State
     const [inviteEmail, setInviteEmail] = useState('');
@@ -91,7 +95,7 @@ export default function InviteModal() {
             setShowLinkSettings(false);
         } catch (err) {
             console.error('Generate link error:', err);
-            setErrorMessage('Failed to generate link');
+            setErrorMessage('Action is not allowed');
         } finally {
             setIsGeneratingLink(false);
         }
@@ -262,63 +266,69 @@ export default function InviteModal() {
                 <div className="flex-1 space-y-6">
                     <h3 className="font-bold text-lg mb-2 flex items-center gap-2"><Link size={20} /> Invite Links</h3>
 
-                    {!showLinkSettings ? (
-                        <button
-                            onClick={() => setShowLinkSettings(true)}
-                            className="w-full py-3 text-sm font-bold bg-black text-white rounded-xl hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
-                        >
-                            <Plus size={16} /> Generate New Link
-                        </button>
-                    ) : (
-                        <div className="bg-gray-50 border-2 border-black rounded-xl p-4 animate-in slide-in-from-top-2">
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="text-xs font-bold text-gray-500 uppercase">Expire After</label>
-                                    <select
-                                        value={expireAfter}
-                                        onChange={(e) => setExpireAfter(e.target.value)}
-                                        className="w-full mt-1 p-2 border-2 border-gray-200 rounded-lg font-bold text-sm bg-white"
-                                    >
-                                        <option value="30m">30 Minutes</option>
-                                        <option value="1h">1 Hour</option>
-                                        <option value="6h">6 Hours</option>
-                                        <option value="12h">12 Hours</option>
-                                        <option value="1d">1 Day</option>
-                                        <option value="7d">7 Days</option>
-                                        <option value="">Never</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="text-xs font-bold text-gray-500 uppercase">Max Uses</label>
-                                    <select
-                                        value={maxUses}
-                                        onChange={(e) => setMaxUses(e.target.value)}
-                                        className="w-full mt-1 p-2 border-2 border-gray-200 rounded-lg font-bold text-sm bg-white"
-                                    >
-                                        <option value="">No Limit</option>
-                                        <option value="1">1 Use</option>
-                                        <option value="5">5 Uses</option>
-                                        <option value="10">10 Uses</option>
-                                        <option value="50">50 Uses</option>
-                                        <option value="100">100 Uses</option>
-                                    </select>
-                                </div>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={handleGenerateLink}
-                                        disabled={isGeneratingLink}
-                                        className="flex-1 py-2 bg-black text-white font-bold rounded-lg text-sm hover:bg-gray-800 disabled:opacity-50"
-                                    >
-                                        {isGeneratingLink ? 'Generating...' : 'Generate'}
-                                    </button>
-                                    <button
-                                        onClick={() => setShowLinkSettings(false)}
-                                        className="px-4 py-2 bg-gray-200 text-gray-700 font-bold rounded-lg text-sm hover:bg-gray-300"
-                                    >
-                                        Cancel
-                                    </button>
+                    {canManageSpace ? (
+                        !showLinkSettings ? (
+                            <button
+                                onClick={() => setShowLinkSettings(true)}
+                                className="w-full py-3 text-sm font-bold bg-black text-white rounded-xl hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
+                            >
+                                <Plus size={16} /> Generate New Link
+                            </button>
+                        ) : (
+                            <div className="bg-gray-50 border-2 border-black rounded-xl p-4 animate-in slide-in-from-top-2">
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-500 uppercase">Expire After</label>
+                                        <select
+                                            value={expireAfter}
+                                            onChange={(e) => setExpireAfter(e.target.value)}
+                                            className="w-full mt-1 p-2 border-2 border-gray-200 rounded-lg font-bold text-sm bg-white"
+                                        >
+                                            <option value="30m">30 Minutes</option>
+                                            <option value="1h">1 Hour</option>
+                                            <option value="6h">6 Hours</option>
+                                            <option value="12h">12 Hours</option>
+                                            <option value="1d">1 Day</option>
+                                            <option value="7d">7 Days</option>
+                                            <option value="">Never</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-gray-500 uppercase">Max Uses</label>
+                                        <select
+                                            value={maxUses}
+                                            onChange={(e) => setMaxUses(e.target.value)}
+                                            className="w-full mt-1 p-2 border-2 border-gray-200 rounded-lg font-bold text-sm bg-white"
+                                        >
+                                            <option value="">No Limit</option>
+                                            <option value="1">1 Use</option>
+                                            <option value="5">5 Uses</option>
+                                            <option value="10">10 Uses</option>
+                                            <option value="50">50 Uses</option>
+                                            <option value="100">100 Uses</option>
+                                        </select>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={handleGenerateLink}
+                                            disabled={isGeneratingLink}
+                                            className="flex-1 py-2 bg-black text-white font-bold rounded-lg text-sm hover:bg-gray-800 disabled:opacity-50"
+                                        >
+                                            {isGeneratingLink ? 'Generating...' : 'Generate'}
+                                        </button>
+                                        <button
+                                            onClick={() => setShowLinkSettings(false)}
+                                            className="px-4 py-2 bg-gray-200 text-gray-700 font-bold rounded-lg text-sm hover:bg-gray-300"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
+                        )
+                    ) : (
+                        <div className="text-center py-4 px-2 text-gray-500 font-medium text-xs bg-gray-50 rounded-xl border border-gray-200">
+                            Only admins can generate invite links.
                         </div>
                     )}
 
