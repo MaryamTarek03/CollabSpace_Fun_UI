@@ -1,7 +1,9 @@
 import React, { useState, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, X, Users, Globe, Lock, ArrowRight, Loader } from 'lucide-react';
 import { useAuthStore, useSpacesStore, useUIStore } from '../../../store';
 import api from '../../../services/api';
+import { getSpaceThumbnailStyle, getSpaceThumbnailUrl, isImageThumbnail } from '../../../shared/utils/helpers';
 
 // Simple debounce utility
 function useDebounce(callback, delay) {
@@ -19,8 +21,9 @@ function useDebounce(callback, delay) {
 }
 
 export default function PublicSpaceSearchModal({ isOpen, onClose }) {
+    const navigate = useNavigate();
     const { user } = useAuthStore();
-    const { joinSpace } = useSpacesStore();
+    const { spaces, joinSpace, fetchSpaces, setActiveSpace } = useSpacesStore();
     const { openInfo } = useUIStore();
     const [query, setQuery] = useState('');
     const [allSpaces, setAllSpaces] = useState([]); // Store all public spaces
@@ -40,8 +43,17 @@ export default function PublicSpaceSearchModal({ isOpen, onClose }) {
         try {
             // Empty query returns top public spaces
             const data = await api.spaces.search('', user?.id);
-            setAllSpaces(data);
-            setFilteredResults(data);
+            
+            const joinedSpaces = useSpacesStore.getState().spaces || [];
+            const joinedIds = new Set(joinedSpaces.map(s => s.id));
+            
+            const mappedData = data.map(s => ({
+                ...s,
+                membershipStatus: joinedIds.has(s.id) ? 'member' : (s.membershipStatus || 'none')
+            }));
+            
+            setAllSpaces(mappedData);
+            setFilteredResults(mappedData);
         } catch (err) {
             console.error('Failed to load public spaces', err);
         } finally {
@@ -71,12 +83,33 @@ export default function PublicSpaceSearchModal({ isOpen, onClose }) {
         setJoiningId(spaceId);
         try {
             await joinSpace(spaceId);
-            // Update local state to show pending in both full and filtered lists
+            await fetchSpaces();
+
+            const updatedSpaces = useSpacesStore.getState().spaces || [];
+            const isNowMember = updatedSpaces.some(s => s.id === spaceId);
+            
+            const newStatus = isNowMember ? 'member' : 'pending';
+
             const updateSpaceStatus = (list) => list.map(s =>
-                s.id === spaceId ? { ...s, membershipStatus: 'pending' } : s
+                s.id === spaceId ? { ...s, membershipStatus: newStatus } : s
             );
             setAllSpaces(prev => updateSpaceStatus(prev));
             setFilteredResults(prev => updateSpaceStatus(prev));
+
+            if (isNowMember) {
+                const joinedSpace = updatedSpaces.find(s => s.id === spaceId);
+                if (joinedSpace) {
+                    setActiveSpace(joinedSpace);
+                    navigate(`/dashboard/spaces/${spaceId}`);
+                    onClose();
+                }
+            } else {
+                openInfo({
+                    title: 'Request Sent',
+                    message: 'Your request to join this space has been sent to the owner.',
+                    type: 'success'
+                });
+            }
         } catch (err) {
             console.error('Failed to request join', err);
             openInfo({
@@ -89,12 +122,22 @@ export default function PublicSpaceSearchModal({ isOpen, onClose }) {
         }
     };
 
+    const handleCardClick = (space) => {
+        if (space.membershipStatus === 'member') {
+            setActiveSpace(space);
+            navigate(`/dashboard/spaces/${space.id}`);
+            onClose();
+        } else if (space.membershipStatus === 'none') {
+            handleJoinRequest(space.id);
+        }
+    };
+
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose}></div>
-            <div className="relative w-full max-w-2xl bg-[#FFFDF5] border-4 border-black rounded-3xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col h-[600px] overflow-hidden animate-in zoom-in-95">
+            <div className="relative w-full max-w-2xl bg-[#FFFDF5] border-4 border-black rounded-3xl flex flex-col h-[600px] overflow-hidden animate-in zoom-in-95">
 
                 {/* Header */}
                 <div className="p-6 border-b-2 border-black flex items-center justify-between bg-accent">
@@ -121,7 +164,7 @@ export default function PublicSpaceSearchModal({ isOpen, onClose }) {
                             value={query}
                             onChange={handleSearch}
                             placeholder="Search by name or description..."
-                            className="w-full pl-12 pr-4 py-4 rounded-xl border-2 border-black font-bold text-lg outline-none focus:ring-4 focus:ring-yellow-200 transition-all"
+                            className="w-full pl-12 pr-4 py-4 rounded-xl border-2 border-black font-bold text-lg outline-none focus:ring-4 focus:ring-accent-light/50 focus:border-accent transition-all"
                             autoFocus
                         />
                         {loading && (
@@ -142,12 +185,26 @@ export default function PublicSpaceSearchModal({ isOpen, onClose }) {
                     )}
 
                     {filteredResults.map(space => (
-                        <div key={space.id} className="bg-white border-2 border-black rounded-2xl p-4 flex items-center gap-4 hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 transition-all">
+                        <div 
+                            key={space.id} 
+                            onClick={() => handleCardClick(space)}
+                            className="bg-white border-2 border-black rounded-2xl p-4 flex items-center gap-4 cursor-pointer hover:bg-slate-50 active:bg-slate-100 transition-all"
+                        >
                             <div
-                                className="w-16 h-16 rounded-xl border-2 border-black flex items-center justify-center text-white font-black text-xl shrink-0"
-                                style={{ background: space.thumbnail }}
+                                className="w-16 h-16 rounded-xl border-2 border-black flex items-center justify-center text-white font-black text-xl shrink-0 overflow-hidden"
+                                style={getSpaceThumbnailStyle(space.thumbnail)}
                             >
-                                {space.name[0]}
+                                {isImageThumbnail(space.thumbnail) ? (
+                                    <img 
+                                        src={getSpaceThumbnailUrl(space.thumbnail)} 
+                                        alt={space.name} 
+                                        className="w-full h-full object-cover" 
+                                    />
+                                ) : (
+                                    <span className="drop-shadow-[0_1.5px_2px_rgba(0,0,0,0.4)]">
+                                        {space.name?.[0]?.toUpperCase()}
+                                    </span>
+                                )}
                             </div>
 
                             <div className="flex-1 min-w-0">
@@ -163,20 +220,23 @@ export default function PublicSpaceSearchModal({ isOpen, onClose }) {
                             </div>
 
                             {/* Action Button */}
-                            <div>
+                            <div onClick={(e) => e.stopPropagation()}>
                                 {space.membershipStatus === 'member' && (
-                                    <span className="px-4 py-2 bg-green-100 text-green-700 font-bold rounded-xl border-2 border-green-200 flex items-center gap-2">
+                                    <span className="px-4 py-2 bg-green-150 text-green-700 font-bold rounded-xl border-2 border-green-200 flex items-center gap-2">
                                         <Users size={16} /> Joined
                                     </span>
                                 )}
                                 {space.membershipStatus === 'pending' && (
-                                    <span className="px-4 py-2 bg-yellow-100 text-yellow-700 font-bold rounded-xl border-2 border-yellow-200 flex items-center gap-2">
+                                    <span className="px-4 py-2 bg-yellow-150 text-yellow-700 font-bold rounded-xl border-2 border-yellow-200 flex items-center gap-2">
                                         <Loader size={16} className="animate-spin" /> Pending
                                     </span>
                                 )}
                                 {space.membershipStatus === 'none' && (
                                     <button
-                                        onClick={() => handleJoinRequest(space.id)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleJoinRequest(space.id);
+                                        }}
                                         disabled={joiningId === space.id}
                                         className="bg-black text-white px-5 py-2.5 rounded-xl font-bold border-2 border-black hover:bg-gray-800 transition-colors flex items-center gap-2 disabled:opacity-50"
                                     >
