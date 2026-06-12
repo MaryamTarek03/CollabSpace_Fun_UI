@@ -147,6 +147,10 @@ async function parseError(response) {
         }
     }
 
+    if (message && (message.includes('already banned') || message.toLowerCase().includes('banned'))) {
+        message = "You have been banned from this space and cannot join or request to join.";
+    }
+
     const error = new Error(message || `HTTP ${response.status}`);
     error.data = errorData;
     error.status = response.status;

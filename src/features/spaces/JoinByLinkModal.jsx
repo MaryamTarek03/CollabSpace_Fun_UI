@@ -24,7 +24,7 @@ const ModalWrapper = ({ children, isOpen, onClose }) => {
 
 export const JoinByLinkModal = () => {
     const navigate = useNavigate();
-    const { isJoinByLinkModalOpen, closeJoinByLinkModal, setCurrentView, inviteCodeToJoin, setInviteCodeToJoin } = useUIStore();
+    const { isJoinByLinkModalOpen, closeJoinByLinkModal, setCurrentView, inviteCodeToJoin, setInviteCodeToJoin, openInfo } = useUIStore();
     const { spaces, setActiveSpace, fetchSpaces } = useSpacesStore();
     const { user } = useAuthStore();
     const [inviteCode, setInviteCode] = useState('');
@@ -137,7 +137,13 @@ export const JoinByLinkModal = () => {
                 navigate(`/dashboard/spaces/${matchedSpace.id}`);
                 closeJoinByLinkModal();
             } else {
-                setError(err.response?.data?.error || 'Failed to join space.');
+                const message = err.response?.data?.error || err.message || 'Failed to join space.';
+                setError(message);
+                openInfo({
+                    title: 'Join Failed',
+                    message: message,
+                    type: 'error'
+                });
             }
         } finally {
             setIsJoining(false);
