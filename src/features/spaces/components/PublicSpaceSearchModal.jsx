@@ -24,7 +24,7 @@ export default function PublicSpaceSearchModal({ isOpen, onClose }) {
     const navigate = useNavigate();
     const { user } = useAuthStore();
     const { spaces, joinSpace, fetchSpaces, setActiveSpace } = useSpacesStore();
-    const { openInfo } = useUIStore();
+    const { openInfo, openInputModal } = useUIStore();
     const [query, setQuery] = useState('');
     const [allSpaces, setAllSpaces] = useState([]); // Store all public spaces
     const [filteredResults, setFilteredResults] = useState([]); // Displayed results
@@ -78,48 +78,59 @@ export default function PublicSpaceSearchModal({ isOpen, onClose }) {
         setFilteredResults(filtered);
     };
 
-    const handleJoinRequest = async (spaceId) => {
-        if (joiningId) return;
-        setJoiningId(spaceId);
-        try {
-            await joinSpace(spaceId);
-            await fetchSpaces();
+    const handleJoinRequest = (spaceId) => {
+        openInputModal({
+            title: 'Request to Join',
+            message: 'Introduce yourself or say why you would like to join this space.',
+            inputLabel: 'Join Message (optional)',
+            inputPlaceholder: 'Hi, I would like to collaborate on...',
+            confirmText: 'Send Request',
+            cancelText: 'Cancel',
+            type: 'info',
+            onConfirm: async (message) => {
+                if (joiningId) return;
+                setJoiningId(spaceId);
+                try {
+                    await joinSpace(spaceId, message || null);
+                    await fetchSpaces();
 
-            const updatedSpaces = useSpacesStore.getState().spaces || [];
-            const isNowMember = updatedSpaces.some(s => s.id === spaceId);
-            
-            const newStatus = isNowMember ? 'member' : 'pending';
+                    const updatedSpaces = useSpacesStore.getState().spaces || [];
+                    const isNowMember = updatedSpaces.some(s => s.id === spaceId);
+                    
+                    const newStatus = isNowMember ? 'member' : 'pending';
 
-            const updateSpaceStatus = (list) => list.map(s =>
-                s.id === spaceId ? { ...s, membershipStatus: newStatus } : s
-            );
-            setAllSpaces(prev => updateSpaceStatus(prev));
-            setFilteredResults(prev => updateSpaceStatus(prev));
+                    const updateSpaceStatus = (list) => list.map(s =>
+                        s.id === spaceId ? { ...s, membershipStatus: newStatus } : s
+                    );
+                    setAllSpaces(prev => updateSpaceStatus(prev));
+                    setFilteredResults(prev => updateSpaceStatus(prev));
 
-            if (isNowMember) {
-                const joinedSpace = updatedSpaces.find(s => s.id === spaceId);
-                if (joinedSpace) {
-                    setActiveSpace(joinedSpace);
-                    navigate(`/dashboard/spaces/${spaceId}`);
-                    onClose();
+                    if (isNowMember) {
+                        const joinedSpace = updatedSpaces.find(s => s.id === spaceId);
+                        if (joinedSpace) {
+                            setActiveSpace(joinedSpace);
+                            navigate(`/dashboard/spaces/${spaceId}`);
+                            onClose();
+                        }
+                    } else {
+                        openInfo({
+                            title: 'Request Sent',
+                            message: 'Your request to join this space has been sent to the owner.',
+                            type: 'success'
+                        });
+                    }
+                } catch (err) {
+                    console.error('Failed to request join', err);
+                    openInfo({
+                        title: 'Request Failed',
+                        message: err?.message || 'Failed to send join request. You may be banned from this space.',
+                        type: 'error'
+                    });
+                } finally {
+                    setJoiningId(null);
                 }
-            } else {
-                openInfo({
-                    title: 'Request Sent',
-                    message: 'Your request to join this space has been sent to the owner.',
-                    type: 'success'
-                });
             }
-        } catch (err) {
-            console.error('Failed to request join', err);
-            openInfo({
-                title: 'Request Failed',
-                message: err?.message || 'Failed to send join request. You may be banned from this space.',
-                type: 'error'
-            });
-        } finally {
-            setJoiningId(null);
-        }
+        });
     };
 
     const handleCardClick = (space) => {

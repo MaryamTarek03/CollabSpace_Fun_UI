@@ -109,8 +109,8 @@ export function createApiSpaceRepository() {
             return httpClient.delete(`/spaces/${id}`);
         },
 
-        async join(spaceId, userId) {
-            return httpClient.post(`/spaces/${spaceId}/invites/join-requests`, {});
+        async join(spaceId, userId, message = null) {
+            return httpClient.post(`/spaces/${spaceId}/invites/join-requests`, message ? { message } : {});
         },
 
         async getRequests(spaceId) {

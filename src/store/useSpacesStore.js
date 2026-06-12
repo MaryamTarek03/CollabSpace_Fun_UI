@@ -146,14 +146,17 @@ const useSpacesStore = create((set, get) => ({
         }
     },
 
-    // Join Requests
-    joinSpace: async (spaceId) => {
+    joinSpace: async (spaceId, message = null) => {
         try {
             const user = useAuthStore.getState().user;
             if (!user) throw new Error('Must be logged in');
             const spaceService = get()._getSpaceService();
-            return await spaceService.join(spaceId, user.id);
+            return await spaceService.join(spaceId, user.id, message);
         } catch (err) {
+            const errorMsg = err.response?.data?.detail || err.response?.data?.message || err.message || '';
+            if (errorMsg.includes('already banned') || errorMsg.toLowerCase().includes('banned')) {
+                throw new Error("You have been banned from this space and cannot join or request to join.");
+            }
             throw err;
         }
     },
