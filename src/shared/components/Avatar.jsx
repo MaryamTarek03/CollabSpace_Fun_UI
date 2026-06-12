@@ -41,7 +41,7 @@ export default function Avatar({
     return (
         <div className={`relative inline-block ${className}`}>
             <div
-                className={`${sizeClasses[size]} rounded-full border-2 border-white flex items-center justify-center font-bold text-white overflow-hidden`}
+                className={`${sizeClasses[size]} rounded-xl border-2 border-black flex items-center justify-center font-bold text-white overflow-hidden shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]`}
                 style={{ backgroundColor: imageUrl ? 'transparent' : bgColor }}
                 title={user?.name || 'Unknown'}
             >
@@ -57,7 +57,7 @@ export default function Avatar({
             </div>
             {showOnline && (
                 <span
-                    className={`absolute bottom-0 right-0 ${onlineDotSizes[size]} rounded-full border-2 border-white ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`}
+                    className={`absolute bottom-0 right-0 ${onlineDotSizes[size]} rounded-full border-2 border-black ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`}
                 />
             )}
         </div>
@@ -103,7 +103,7 @@ export function AvatarGroup({ users = [], max = 3, size = 'sm' }) {
             ))}
             {remaining > 0 && (
                 <div
-                    className={`${sizeClasses[size]} rounded-full border-2 border-white bg-gray-100 flex items-center justify-center font-bold text-gray-500`}
+                    className={`${sizeClasses[size]} rounded-xl border-2 border-black bg-black text-white flex items-center justify-center font-bold shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]`}
                 >
                     +{remaining}
                 </div>

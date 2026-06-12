@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Gamepad2, MessageSquare, Link, FileText, Users, Eye, Settings, LogOut, Move, Save, X, Lock } from 'lucide-react';
 import SpaceStats from './components/SpaceStats';
 import SpacePreviewCard from './components/SpacePreviewCard';
-import { getFileIcon, isImageThumbnail, getSpaceThumbnailStyle, getSpaceThumbnailUrl } from '../../shared/utils/helpers';
+import { getFileIcon, isImageThumbnail, getSpaceThumbnailStyle, getSpaceThumbnailUrl, getImageUrl } from '../../shared/utils/helpers';
 import { useSpacesStore, useUIStore, useChatStore, useAuthStore } from '../../store';
 import api from '../../services/api';
 
@@ -441,10 +441,34 @@ export default function SpaceDetailsView() {
                             <ArrowLeft size={16} className="rotate-180 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                         <div className="flex flex-wrap gap-2">
-                            {(activeSpace.members || []).slice(0, 6).map((m, i) => (
-                                <div key={i} className={`w-10 h-10 rounded-xl border-2 border-black flex items-center justify-center font-bold text-xs ${m.avatar}`}>{m.name?.[0] || '?'}</div>
-                            ))}
-                            <div className="w-10 h-10 rounded-xl bg-black text-white border-2 border-black flex items-center justify-center font-bold text-xs">+{(activeSpace.memberCount || 0) - (activeSpace.members?.length || 0)}</div>
+                            {(activeSpace.members || []).slice(0, 6).map((m, i) => {
+                                const imageUrl = getImageUrl(m.avatarImage);
+                                const initial = m.name?.[0]?.toUpperCase() || '?';
+                                const bgColor = m.avatarColor || '#6b7280';
+                                return (
+                                    <div
+                                        key={m.id || i}
+                                        className="w-10 h-10 rounded-xl border-2 border-black flex items-center justify-center font-bold text-xs text-white overflow-hidden shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]"
+                                        style={{ backgroundColor: imageUrl ? 'transparent' : bgColor }}
+                                        title={m.name || 'Unknown'}
+                                    >
+                                        {imageUrl ? (
+                                            <img
+                                                src={imageUrl}
+                                                alt={m.name}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            initial
+                                        )}
+                                    </div>
+                                );
+                            })}
+                            {Math.max(0, (activeSpace.memberCount || 0) - Math.min(6, (activeSpace.members || []).length)) > 0 && (
+                                <div className="w-10 h-10 rounded-xl bg-black text-white border-2 border-black flex items-center justify-center font-bold text-xs shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]">
+                                    +{Math.max(0, (activeSpace.memberCount || 0) - Math.min(6, (activeSpace.members || []).length))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

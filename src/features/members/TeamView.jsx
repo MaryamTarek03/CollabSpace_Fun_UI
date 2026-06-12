@@ -4,6 +4,7 @@ import { useAuthStore } from '../../store';
 import api from '../../services/api';
 import { getImageUrl } from '../../shared/utils/helpers';
 import UserProfileModal from '../profile/UserProfileModal';
+import Avatar from '../../shared/components/Avatar';
 
 export default function TeamView() {
     const { user } = useAuthStore();
@@ -99,29 +100,16 @@ export default function TeamView() {
                         <p className="text-gray-500">Try a different search term</p>
                     </div>
                 ) : (
-                    <div className="divide-y-2 divide-gray-100">
+                    <div className="divide-y-2 divide-black bg-white">
                         {results.map(result => (
                             <button
                                 key={result.id}
                                 onClick={() => setViewingProfileId(result.id)}
-                                className="w-full flex items-center gap-4 p-4 hover:bg-blue-50 transition-colors text-left"
+                                className="w-full flex items-center gap-4 p-5 hover:bg-yellow-50 transition-colors text-left first:rounded-t-2xl last:rounded-b-2xl border-black"
                             >
-                                <div
-                                    className="w-14 h-14 rounded-full border-3 border-black flex items-center justify-center font-bold text-xl text-white flex-shrink-0 shadow-[2px_2px_0_0_rgba(0,0,0,1)]"
-                                    style={{ backgroundColor: result.avatarColor || '#9ca3af' }}
-                                >
-                                    {result.avatarImage ? (
-                                        <img
-                                            src={getImageUrl(result.avatarImage)}
-                                            alt=""
-                                            className="w-full h-full rounded-full object-cover"
-                                        />
-                                    ) : (
-                                        result.name?.[0] || '?'
-                                    )}
-                                </div>
+                                <Avatar user={result} size="xl" className="flex-shrink-0 !shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]" />
                                 <div className="flex-1 min-w-0">
-                                    <p className="font-bold text-lg truncate">{result.name}</p>
+                                    <p className="font-bold text-lg truncate hover:text-pink-600 transition-colors">{result.name}</p>
                                     <p className="text-gray-500 font-medium">@{result.username}</p>
                                     {result.bio && (
                                         <p className="text-sm text-gray-400 truncate mt-1">{result.bio}</p>
