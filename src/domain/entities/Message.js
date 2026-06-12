@@ -63,7 +63,7 @@ export function createMessage(data = {}) {
         forwardedFromChannel: data.forwardedFromChannel || null,
 
         // Soft delete fields
-        deletedAt: data.deletedAt || null,
+        deletedAt: data.deletedAt || (data.isDeleted ? (data.updatedAt || data.createdAt || new Date().toISOString()) : null),
         deletedBy: data.deletedBy || null,
         deletedByRole: data.deletedByRole || null,
 
@@ -76,7 +76,7 @@ export function createMessage(data = {}) {
         },
 
         get isDeleted() {
-            return !!this.deletedAt;
+            return !!this.deletedAt || !!data.isDeleted;
         }
     };
 }

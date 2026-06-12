@@ -70,27 +70,6 @@ export default function ChatView() {
         setIsUploading(true);
 
         try {
-            // Upload files first
-            let attachmentIds = [];
-            if (files.length > 0) {
-                for (const file of files) {
-                    try {
-                        const uploaded = await api.files.upload(
-                            activeChatSpace.id,
-                            file,
-                            user?.id,
-                            null, // No progress callback needed
-                            null  // No folder
-                        );
-                        if (uploaded?.id) {
-                            attachmentIds.push(uploaded.id);
-                        }
-                    } catch (uploadErr) {
-                        console.error('Failed to upload file:', uploadErr);
-                    }
-                }
-            }
-
             // Extract user mentions - @username (excluding bracket patterns)
             const userMentionMatches = text.match(/@([a-zA-Z0-9_]+)/g) || [];
             const mentions = [];
@@ -125,7 +104,7 @@ export default function ChatView() {
                 mentions: mentions,
                 mentionEveryone,
                 mentionRoles: mentionRoles.length > 0 ? [...new Set(mentionRoles)] : undefined,
-                attachments: attachmentIds.length > 0 ? attachmentIds : undefined
+                files: files
             };
 
             await sendMessage(messageData);

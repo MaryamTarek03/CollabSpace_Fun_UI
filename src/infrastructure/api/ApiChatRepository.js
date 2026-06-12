@@ -21,14 +21,44 @@ export function createApiChatRepository() {
 
         async sendMessage(spaceId, messageData) {
             const channelId = messageData.channelId || 'general';
-            const body = {
-                text: messageData.text || messageData.content || '',
-                parentId: messageData.parentId || null,
-                attachmentFileIds: messageData.attachmentFileIds || [],
-                attachmentUrls: messageData.attachmentUrls || []
-            };
-            const result = await httpClient.post(`/spaces/${spaceId}/channels/${channelId}/messages`, body);
-            return MessageMapper.fromApi(result);
+
+            if (messageData.files && messageData.files.length > 0) {
+                const formData = new FormData();
+                formData.append('Text', messageData.text || messageData.content || '');
+                
+                const parentId = messageData.parentId || messageData.replyToId;
+                if (parentId) {
+                    formData.append('ParentId', parentId);
+                }
+
+                messageData.files.forEach(file => {
+                    formData.append('Files', file);
+                });
+
+                if (messageData.attachmentFileIds && Array.isArray(messageData.attachmentFileIds)) {
+                    messageData.attachmentFileIds.forEach(id => {
+                        formData.append('AttachmentFileIds', id);
+                    });
+                }
+
+                if (messageData.attachmentUrls && Array.isArray(messageData.attachmentUrls)) {
+                    messageData.attachmentUrls.forEach(url => {
+                        formData.append('AttachmentUrls', url);
+                    });
+                }
+
+                const result = await httpClient.post(`/spaces/${spaceId}/channels/${channelId}/messages`, formData);
+                return MessageMapper.fromApi(result);
+            } else {
+                const body = {
+                    text: messageData.text || messageData.content || '',
+                    parentId: messageData.parentId || messageData.replyToId || null,
+                    attachmentFileIds: messageData.attachmentFileIds || [],
+                    attachmentUrls: messageData.attachmentUrls || []
+                };
+                const result = await httpClient.post(`/spaces/${spaceId}/channels/${channelId}/messages`, body);
+                return MessageMapper.fromApi(result);
+            }
         },
 
         async deleteMessage(messageId, senderId) {

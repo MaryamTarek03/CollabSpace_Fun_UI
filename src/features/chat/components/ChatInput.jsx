@@ -18,6 +18,23 @@ export default function ChatInput({
     const inputRef = useRef(null);
     const fileInputRef = useRef(null);
 
+    // Track selected files in a ref for cleanup on unmount
+    const selectedFilesRef = useRef(selectedFiles);
+    useEffect(() => {
+        selectedFilesRef.current = selectedFiles;
+    }, [selectedFiles]);
+
+    // Revoke object URLs on unmount to prevent memory leaks
+    useEffect(() => {
+        return () => {
+            selectedFilesRef.current.forEach(item => {
+                if (item.previewUrl) {
+                    URL.revokeObjectURL(item.previewUrl);
+                }
+            });
+        };
+    }, []);
+
     // Monitor input for @ mentions
     useEffect(() => {
         const lastAtIndex = text.lastIndexOf('@', cursorPosition - 1);
@@ -96,7 +113,15 @@ export default function ChatInput({
     };
 
     const handleFileSelect = (e) => {
-        const files = Array.from(e.target.files);
+        const files = Array.from(e.target.files).map(file => {
+            const previewUrl = file.type.startsWith('image/') ? URL.createObjectURL(file) : null;
+            return {
+                id: Math.random().toString(36).substring(2, 9),
+                file,
+                previewUrl
+            };
+        });
+
         if (files.length > 0) {
             setSelectedFiles(prev => [...prev, ...files].slice(0, 5)); // Max 5 files
         }
@@ -105,10 +130,12 @@ export default function ChatInput({
     };
 
     const removeFile = (index) => {
+        const item = selectedFiles[index];
+        if (item?.previewUrl) {
+            URL.revokeObjectURL(item.previewUrl);
+        }
         setSelectedFiles(prev => prev.filter((_, i) => i !== index));
     };
-
-    const isImage = (file) => file.type.startsWith('image/');
 
     const hasContent = text.trim() || selectedFiles.length > 0;
 
@@ -149,13 +176,13 @@ export default function ChatInput({
             {selectedFiles.length > 0 && (
                 <div className="px-4 pt-3 pb-2">
                     <div className="flex gap-2 flex-wrap">
-                        {selectedFiles.map((file, index) => (
-                            <div key={index} className="relative group">
-                                {isImage(file) ? (
+                        {selectedFiles.map((fileObj, index) => (
+                            <div key={fileObj.id || index} className="relative group">
+                                {fileObj.previewUrl ? (
                                     <div className="w-16 h-16 rounded-xl border-2 border-black overflow-hidden bg-gray-100">
                                         <img
-                                            src={URL.createObjectURL(file)}
-                                            alt={file.name}
+                                            src={fileObj.previewUrl}
+                                            alt={fileObj.file.name}
                                             className="w-full h-full object-cover"
                                         />
                                     </div>
@@ -163,7 +190,7 @@ export default function ChatInput({
                                     <div className="w-16 h-16 rounded-xl border-2 border-black bg-gray-100 flex flex-col items-center justify-center p-1">
                                         <FileText size={20} className="text-gray-500" />
                                         <span className="text-[8px] text-gray-500 truncate w-full text-center mt-1">
-                                            {file.name.split('.').pop()?.toUpperCase()}
+                                            {fileObj.file.name.split('.').pop()?.toUpperCase()}
                                         </span>
                                     </div>
                                 )}
@@ -186,9 +213,17 @@ export default function ChatInput({
                         return;
                     }
                     if (!hasContent || isSending) return;
-                    const success = await onSendMessage(text, selectedFiles);
+
+                    const filesToSend = selectedFiles.map(item => item.file);
+                    const success = await onSendMessage(text, filesToSend);
                     if (success) {
                         setText('');
+                        // Revoke all preview URLs before clearing
+                        selectedFiles.forEach(item => {
+                            if (item.previewUrl) {
+                                URL.revokeObjectURL(item.previewUrl);
+                            }
+                        });
                         setSelectedFiles([]);
                     }
                 }} className="relative flex gap-2">

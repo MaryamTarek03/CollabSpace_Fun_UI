@@ -1,7 +1,34 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuthStore, useChatStore, useUIStore } from '../../../store';
 import { getImageUrl, formatBytes } from '../../../shared/utils/helpers';
-import { Edit2, Trash2, Check, X, Reply, Forward, MoreVertical, FileText, Download } from 'lucide-react';
+import { 
+    Edit2, Trash2, Check, X, Reply, Forward, MoreVertical, Download,
+    File, FileText, FileImage, FileAudio, FileVideo, FileCode, Archive 
+} from 'lucide-react';
+
+const getFileIcon = (mimeType, name) => {
+    const ext = name?.split('.').pop()?.toLowerCase();
+    
+    if (mimeType?.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(ext)) {
+        return FileImage;
+    }
+    if (mimeType?.startsWith('video/') || ['mp4', 'mkv', 'avi', 'mov', 'webm'].includes(ext)) {
+        return FileVideo;
+    }
+    if (mimeType?.startsWith('audio/') || ['mp3', 'wav', 'ogg', 'aac'].includes(ext)) {
+        return FileAudio;
+    }
+    if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt'].includes(ext)) {
+        return FileText;
+    }
+    if (['zip', 'rar', 'tar', 'gz', '7z'].includes(ext)) {
+        return Archive;
+    }
+    if (['js', 'jsx', 'ts', 'tsx', 'html', 'css', 'json', 'py', 'java', 'cs', 'cpp', 'c', 'go'].includes(ext)) {
+        return FileCode;
+    }
+    return File;
+};
 
 
 export default function ChatMessage({ msg, onForward }) {
@@ -130,10 +157,17 @@ export default function ChatMessage({ msg, onForward }) {
     }
 
     // Deleted messages - show placeholder
-    if (msg.deletedAt) {
-        const deletedLabel = msg.deletedByRole === 'author'
+    if (msg.isDeleted || msg.deletedAt) {
+        const isDeletedByAuthor = msg.deletedByRole === 'author' || 
+                                  !msg.deletedBy || 
+                                  msg.deletedBy === msg.senderId ||
+                                  msg.deletedBy === msg.sender ||
+                                  (currentUser && msg.deletedBy === currentUser.id) ||
+                                  isMe;
+
+        const deletedLabel = isDeletedByAuthor
             ? 'This message was deleted'
-            : `This message was removed by ${msg.deletedByRole}`;
+            : `This message was removed by an administrator`;
 
         return (
             <div id={`msg-${msg.id}`} className={`flex gap-4 max-w-[80%] ${isMe ? 'ml-auto flex-row-reverse' : ''} animate-in fade-in duration-300 transition-all`}>
@@ -318,48 +352,28 @@ export default function ChatMessage({ msg, onForward }) {
 
                                 {/* Attachments */}
                                 {msg.attachments && msg.attachments.length > 0 && (
-                                    <div className="mt-3 space-y-2">
+                                    <div className="mt-3 space-y-2 max-w-md">
                                         {msg.attachments.map((attachment, idx) => {
-                                            const isImage = attachment.mimeType?.startsWith('image/');
-
-                                            if (isImage) {
-                                                return (
-                                                    <a
-                                                        key={idx}
-                                                        href={attachment.downloadUrl}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="block max-w-[300px] rounded-xl overflow-hidden border-2 border-black/20 hover:border-accent transition-colors"
-                                                    >
-                                                        <img
-                                                            src={attachment.downloadUrl}
-                                                            alt={attachment.name}
-                                                            className="w-full h-auto object-cover max-h-[200px]"
-                                                            loading="lazy"
-                                                        />
-                                                    </a>
-                                                );
-                                            }
-
-                                            // Non-image file
+                                            const FileIconComponent = getFileIcon(attachment.mimeType || attachment.type, attachment.name);
+                                            const sizeStr = formatBytes(attachment.size || attachment.sizeInBytes || 0);
+                                            
                                             return (
                                                 <a
                                                     key={idx}
                                                     href={attachment.downloadUrl}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
-                                                    className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-colors ${isMe ? 'border-white/20 hover:border-white bg-white/10' : 'border-black/10 hover:border-black bg-gray-50'}`}
+                                                    className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border-2 transition-all text-sm font-bold ${
+                                                        isMe 
+                                                            ? 'bg-white/10 hover:bg-white/20 border-white/10 text-white' 
+                                                            : 'bg-black/5 hover:bg-black/10 border-black/5 text-black'
+                                                    }`}
                                                 >
-                                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isMe ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-600'}`}>
-                                                        <FileText size={20} />
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="font-bold text-sm truncate">{attachment.name}</p>
-                                                        <p className={`text-xs ${isMe ? 'text-gray-300' : 'text-gray-500'}`}>
-                                                            {formatBytes(attachment.size)}
-                                                        </p>
-                                                    </div>
-                                                    <Download size={16} className={isMe ? 'text-gray-300' : 'text-gray-500'} />
+                                                    <FileIconComponent size={18} className="flex-shrink-0" />
+                                                    <span className="truncate flex-1">
+                                                        {attachment.name} <span className="opacity-70 font-medium">({sizeStr})</span>
+                                                    </span>
+                                                    <Download size={14} className="opacity-60 hover:opacity-100 flex-shrink-0 ml-1" />
                                                 </a>
                                             );
                                         })}
