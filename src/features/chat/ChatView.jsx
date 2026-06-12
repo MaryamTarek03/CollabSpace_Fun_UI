@@ -20,8 +20,6 @@ export default function ChatView() {
         activeChannel,
         setActiveChannel,
         channels,
-        chatInput,
-        setChatInput,
         sendMessage,
         forwardMessage,
         messages,
@@ -58,7 +56,6 @@ export default function ChatView() {
     const [forwardingMessage, setForwardingMessage] = useState(null);
 
     // Attachment state
-    const [selectedFiles, setSelectedFiles] = useState([]);
     const [isUploading, setIsUploading] = useState(false);
 
     // Scroll to bottom when messages change
@@ -66,18 +63,17 @@ export default function ChatView() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [currentMessages]);
 
-    const handleSendMessage = async (e) => {
-        e?.preventDefault();
-        const hasContent = chatInput.trim() || selectedFiles.length > 0;
-        if (!hasContent || !activeChatSpace) return;
+    const handleSendMessage = async (text, files) => {
+        const hasContent = text.trim() || files.length > 0;
+        if (!hasContent || !activeChatSpace) return false;
 
         setIsUploading(true);
 
         try {
             // Upload files first
             let attachmentIds = [];
-            if (selectedFiles.length > 0) {
-                for (const file of selectedFiles) {
+            if (files.length > 0) {
+                for (const file of files) {
                     try {
                         const uploaded = await api.files.upload(
                             activeChatSpace.id,
@@ -96,7 +92,7 @@ export default function ChatView() {
             }
 
             // Extract user mentions - @username (excluding bracket patterns)
-            const userMentionMatches = chatInput.match(/@([a-zA-Z0-9_]+)/g) || [];
+            const userMentionMatches = text.match(/@([a-zA-Z0-9_]+)/g) || [];
             const mentions = [];
 
             userMentionMatches.forEach(match => {
@@ -111,7 +107,7 @@ export default function ChatView() {
             });
 
             // Extract special mentions - @[keyword]
-            const specialMentionMatches = chatInput.match(/@\[([a-zA-Z]+)\]/g) || [];
+            const specialMentionMatches = text.match(/@\[([a-zA-Z]+)\]/g) || [];
             const specialKeywords = specialMentionMatches.map(m => m.slice(2, -1).toLowerCase());
 
             const mentionEveryone = specialKeywords.includes('everyone');
@@ -124,7 +120,7 @@ export default function ChatView() {
 
             const messageData = {
                 senderId: user?.id,
-                text: chatInput || (attachmentIds.length > 0 ? '' : ''),
+                text: text || '',
                 type: 'user',
                 mentions: mentions,
                 mentionEveryone,
@@ -133,8 +129,10 @@ export default function ChatView() {
             };
 
             await sendMessage(messageData);
-            setChatInput('');
-            setSelectedFiles([]);
+            return true;
+        } catch (err) {
+            console.error('Failed to send message:', err);
+            return false;
         } finally {
             setIsUploading(false);
         }
@@ -213,12 +211,8 @@ export default function ChatView() {
                     <div ref={messagesEndRef} />
                 </div>
                 <ChatInput
-                    chatInput={chatInput}
-                    setChatInput={setChatInput}
-                    handleSendMessage={handleSendMessage}
+                    onSendMessage={handleSendMessage}
                     spaceName={activeChannel?.name || activeChatSpace.name}
-                    selectedFiles={selectedFiles}
-                    setSelectedFiles={setSelectedFiles}
                     isSending={isUploading}
                 />
             </div>

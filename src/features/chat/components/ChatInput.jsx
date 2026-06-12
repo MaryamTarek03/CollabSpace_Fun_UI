@@ -1,18 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, X, Reply, Paperclip, Image, FileText, Loader2 } from 'lucide-react';
+import { Send, X, Reply, Paperclip, FileText, Loader2 } from 'lucide-react';
 import { useChatStore } from '../../../store';
 import MentionList from './MentionList';
 
 export default function ChatInput({
-    chatInput,
-    setChatInput,
-    handleSendMessage,
+    onSendMessage,
     spaceName,
-    selectedFiles,
-    setSelectedFiles,
     isSending = false
 }) {
     const { replyingTo, clearReplyingTo, members } = useChatStore();
+    const [text, setText] = useState('');
+    const [selectedFiles, setSelectedFiles] = useState([]);
     const [mentionFilter, setMentionFilter] = useState('');
     const [showMentions, setShowMentions] = useState(false);
     const [cursorPosition, setCursorPosition] = useState(0);
@@ -22,13 +20,13 @@ export default function ChatInput({
 
     // Monitor input for @ mentions
     useEffect(() => {
-        const lastAtIndex = chatInput.lastIndexOf('@', cursorPosition - 1);
+        const lastAtIndex = text.lastIndexOf('@', cursorPosition - 1);
 
         if (lastAtIndex !== -1) {
-            const textAfterAt = chatInput.slice(lastAtIndex + 1, cursorPosition);
+            const textAfterAt = text.slice(lastAtIndex + 1, cursorPosition);
 
             // Check if there's a space before the @ (or it's at start)
-            const isStartOrSpace = lastAtIndex === 0 || chatInput[lastAtIndex - 1] === ' ';
+            const isStartOrSpace = lastAtIndex === 0 || text[lastAtIndex - 1] === ' ';
             // Check if there are no spaces in the query (simple username matching)
             const hasNoSpaces = !textAfterAt.includes(' ');
 
@@ -47,16 +45,16 @@ export default function ChatInput({
         }
 
         setShowMentions(false);
-    }, [chatInput, cursorPosition]);
+    }, [text, cursorPosition]);
 
     const handleMentionSelect = (member) => {
-        const lastAtIndex = chatInput.lastIndexOf('@', cursorPosition - 1);
-        const textBeforeAt = chatInput.slice(0, lastAtIndex);
-        const textAfterCursor = chatInput.slice(cursorPosition);
+        const lastAtIndex = text.lastIndexOf('@', cursorPosition - 1);
+        const textBeforeAt = text.slice(0, lastAtIndex);
+        const textAfterCursor = text.slice(cursorPosition);
 
         const insertedMention = member.username || member.name.replace(/\s+/g, '');
         const newValue = `${textBeforeAt}@${insertedMention} ${textAfterCursor}`;
-        setChatInput(newValue);
+        setText(newValue);
         setShowMentions(false);
 
         if (inputRef.current) {
@@ -93,7 +91,7 @@ export default function ChatInput({
     };
 
     const onInputChange = (e) => {
-        setChatInput(e.target.value);
+        setText(e.target.value);
         setCursorPosition(e.target.selectionStart);
     };
 
@@ -112,7 +110,7 @@ export default function ChatInput({
 
     const isImage = (file) => file.type.startsWith('image/');
 
-    const hasContent = chatInput.trim() || selectedFiles.length > 0;
+    const hasContent = text.trim() || selectedFiles.length > 0;
 
     return (
         <div className="border-t-2 border-black bg-white relative">
@@ -182,12 +180,17 @@ export default function ChatInput({
             )}
 
             <div className="p-4">
-                <form onSubmit={(e) => {
+                <form onSubmit={async (e) => {
+                    e.preventDefault();
                     if (showMentions) {
-                        e.preventDefault();
                         return;
                     }
-                    handleSendMessage(e);
+                    if (!hasContent || isSending) return;
+                    const success = await onSendMessage(text, selectedFiles);
+                    if (success) {
+                        setText('');
+                        setSelectedFiles([]);
+                    }
                 }} className="relative flex gap-2">
                     {/* Hidden file input */}
                     <input
@@ -213,7 +216,7 @@ export default function ChatInput({
                         <input
                             ref={inputRef}
                             id="chat-input"
-                            value={chatInput}
+                            value={text}
                             onChange={onInputChange}
                             onClick={(e) => setCursorPosition(e.target.selectionStart)}
                             onKeyUp={(e) => setCursorPosition(e.target.selectionStart)}
