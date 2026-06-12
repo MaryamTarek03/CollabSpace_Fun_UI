@@ -46,8 +46,9 @@ export default function JoinSessionModal() {
 
         const getDevices = async () => {
             try {
-                // Request permissions first
-                await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+                // Request permissions first and release them immediately
+                const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+                tempStream.getTracks().forEach(track => track.stop());
 
                 const devices = await navigator.mediaDevices.enumerateDevices();
 
@@ -72,6 +73,8 @@ export default function JoinSessionModal() {
 
     // Setup camera preview
     useEffect(() => {
+        let activeStream = null;
+
         if (!isJoinSessionModalOpen || !cameraEnabled) {
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
@@ -88,6 +91,7 @@ export default function JoinSessionModal() {
                 };
 
                 const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+                activeStream = mediaStream;
                 setStream(mediaStream);
 
                 if (videoRef.current) {
@@ -101,8 +105,8 @@ export default function JoinSessionModal() {
         setupCamera();
 
         return () => {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
+            if (activeStream) {
+                activeStream.getTracks().forEach(track => track.stop());
             }
         };
     }, [isJoinSessionModalOpen, cameraEnabled, selectedCamera]);
@@ -118,12 +122,14 @@ export default function JoinSessionModal() {
         let analyser;
         let microphone;
         let animationId;
+        let activeAudioStream = null;
 
         const setupMicLevel = async () => {
             try {
                 const audioStream = await navigator.mediaDevices.getUserMedia({
                     audio: selectedMic ? { deviceId: { exact: selectedMic } } : true
                 });
+                activeAudioStream = audioStream;
 
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 analyser = audioContext.createAnalyser();
@@ -151,6 +157,9 @@ export default function JoinSessionModal() {
         return () => {
             if (animationId) cancelAnimationFrame(animationId);
             if (audioContext) audioContext.close();
+            if (activeAudioStream) {
+                activeAudioStream.getTracks().forEach(track => track.stop());
+            }
         };
     }, [isJoinSessionModalOpen, micEnabled, selectedMic]);
 
