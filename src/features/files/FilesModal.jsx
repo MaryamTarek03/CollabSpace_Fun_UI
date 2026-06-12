@@ -68,7 +68,24 @@ export default function FilesModal() {
         return was;
     };
 
-    // File upload hook - pass current folder
+    // Fetch folders and files helper
+    const fetchContents = async () => {
+        if (!isFilesModalOpen || !activeSpace) return;
+        setLoading(true);
+        try {
+            const [foldersData, filesData] = await Promise.all([
+                api.folders.getBySpace(activeSpace.id, currentFolderId),
+                api.files.getBySpace(activeSpace.id, currentFolderId)
+            ]);
+            setFolders(foldersData);
+            setFiles(filesData);
+        } catch (err) {
+            console.error('Failed to fetch folder contents:', err);
+        }
+        setLoading(false);
+    };
+
+    // File upload hook - pass current folder and success handler
     const {
         uploadState,
         uploadProgress,
@@ -77,29 +94,16 @@ export default function FilesModal() {
         fileInputRef,
         handleFileSelect,
         triggerFileUpload
-    } = useFileUpload({ activeSpace, folderId: currentFolderId });
+    } = useFileUpload({ 
+        activeSpace, 
+        folderId: currentFolderId,
+        onUploadSuccess: fetchContents
+    });
 
-    // Fetch folders and files when folder changes
+    // Fetch folders and files when folder changes (excluding uploadState from deps)
     useEffect(() => {
-        if (!isFilesModalOpen || !activeSpace) return;
-
-        const fetchContents = async () => {
-            setLoading(true);
-            try {
-                const [foldersData, filesData] = await Promise.all([
-                    api.folders.getBySpace(activeSpace.id, currentFolderId),
-                    api.files.getBySpace(activeSpace.id, currentFolderId)
-                ]);
-                setFolders(foldersData);
-                setFiles(filesData);
-            } catch (err) {
-                console.error('Failed to fetch folder contents:', err);
-            }
-            setLoading(false);
-        };
-
         fetchContents();
-    }, [isFilesModalOpen, activeSpace, currentFolderId, uploadState]);
+    }, [isFilesModalOpen, activeSpace?.id, currentFolderId]);
 
     // Navigate into a folder
     const navigateToFolder = async (folder) => {

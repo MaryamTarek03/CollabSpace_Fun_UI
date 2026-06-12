@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import api from '../../../services/api';
 import { useAuthStore, useSpacesStore } from '../../../store';
 
-export default function useFileUpload({ activeSpace, folderId }) {
+export default function useFileUpload({ activeSpace, folderId, onUploadSuccess }) {
     const [uploadState, setUploadState] = useState('idle');
     const [uploadProgress, setUploadProgress] = useState(0);
     const [uploadedBytes, setUploadedBytes] = useState(0);
@@ -32,6 +32,11 @@ export default function useFileUpload({ activeSpace, folderId }) {
             // Upload complete
             setUploadProgress(100);
             setUploadState('success');
+
+            // Trigger success callback to update files UI immediately
+            if (onUploadSuccess) {
+                onUploadSuccess();
+            }
 
             // Refresh spaces to get updated file list
             await useSpacesStore.getState().fetchSpaces();
