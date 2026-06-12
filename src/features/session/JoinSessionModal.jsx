@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { X, Mic, MicOff, Video, VideoOff, Volume2, User } from 'lucide-react';
 import { useUIStore, useSpacesStore, useChatStore } from '../../store';
 
 export default function JoinSessionModal() {
+    const navigate = useNavigate();
     const {
         isJoinSessionModalOpen,
         closeJoinSessionModal,
@@ -166,20 +168,10 @@ export default function JoinSessionModal() {
             stream.getTracks().forEach(track => track.stop());
         }
 
-        // Launch Unity session with loading progress
+        // Launch Unity session with loading progress reset
         useUIStore.getState().setUnityLoadingProgress(0);
-        setCurrentView('unity-view');
         closeJoinSessionModal();
-
-        // Simulate progress loading
-        const interval = setInterval(() => {
-            const current = useUIStore.getState().unityLoadingProgress;
-            if (current >= 100) {
-                clearInterval(interval);
-                return;
-            }
-            useUIStore.getState().setUnityLoadingProgress(current + 5);
-        }, 100);
+        navigate(`/dashboard/session/${activeSpace.id}`);
     };
 
     const handleClose = () => {

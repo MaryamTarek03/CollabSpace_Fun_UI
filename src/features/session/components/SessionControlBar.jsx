@@ -1,8 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Mic, MicOff, Video, VideoOff, MessageSquare, Smile, Monitor, LogOut } from 'lucide-react';
 import { useUIStore } from '../../../store';
 
-export default function SessionControlBar() {
+export default function SessionControlBar({ spaceId: propSpaceId }) {
+    const { spaceId: paramSpaceId } = useParams();
+    const spaceId = propSpaceId || paramSpaceId;
+    const navigate = useNavigate();
+
     const {
         setCurrentView,
         sessionMicEnabled,
@@ -18,8 +23,39 @@ export default function SessionControlBar() {
     const setMicEnabled = setSessionMicEnabled;
     const setCameraEnabled = setSessionCameraEnabled;
 
+    // Sync state with Unity WebGL / Sandbox
+    useEffect(() => {
+        const value = micEnabled ? 1 : 0;
+        if (window.unityInstance) {
+            try {
+                window.unityInstance.SendMessage('ReactBridge', 'ToggleMic', value);
+            } catch (err) {
+                console.warn('Failed to send ToggleMic to Unity instance', err);
+            }
+        }
+        // Log for Sandbox visualization
+        if (window.unityCallbacks?.onOutboundMessage) {
+            window.unityCallbacks.onOutboundMessage('ToggleMic', value);
+        }
+    }, [micEnabled]);
+
+    useEffect(() => {
+        const value = cameraEnabled ? 1 : 0;
+        if (window.unityInstance) {
+            try {
+                window.unityInstance.SendMessage('ReactBridge', 'ToggleCamera', value);
+            } catch (err) {
+                console.warn('Failed to send ToggleCamera to Unity instance', err);
+            }
+        }
+        // Log for Sandbox visualization
+        if (window.unityCallbacks?.onOutboundMessage) {
+            window.unityCallbacks.onOutboundMessage('ToggleCamera', value);
+        }
+    }, [cameraEnabled]);
+
     const handleLeaveSession = () => {
-        setCurrentView('space-details');
+        navigate(`/dashboard/spaces/${spaceId}`);
     };
 
     const ControlButton = ({ active, onClick, activeColor = 'bg-white', inactiveColor = 'bg-red-400', children }) => (
