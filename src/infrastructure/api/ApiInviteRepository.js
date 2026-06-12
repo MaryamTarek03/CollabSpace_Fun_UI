@@ -27,18 +27,11 @@ export function createApiInviteRepository() {
         },
 
         async getByCode(code) {
-            // Real API doesn't support resolving code without joining.
-            // Return a mock preview object to satisfy the UI preview flow.
+            const data = await httpClient.get(`/spaces/invites/codes/${code}/preview`);
             return InviteMapper.fromApi({
                 id: code,
                 code: code,
-                space: {
-                    id: code,
-                    name: 'CollabSpace Space',
-                    description: 'You have been invited to join this space via code.',
-                    thumbnail: null,
-                    memberCount: 1
-                }
+                space: data
             });
         },
 

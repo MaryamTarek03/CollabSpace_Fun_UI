@@ -35,19 +35,33 @@ export default function SpaceDetailsView() {
     const startPosRef = React.useRef(0);
 
     const [isJoining, setIsJoining] = React.useState(false);
+    const [recentFiles, setRecentFiles] = React.useState([]);
+    const [recentFilesLoading, setRecentFilesLoading] = React.useState(false);
 
     // Set active space based on route param if not already set
     useEffect(() => {
         if (!spaceId) return;
 
-        // Fetch the full space details and files in parallel
+        setRecentFilesLoading(true);
+        // Fetch the full space details, files, and recent files in parallel
         Promise.all([
             api.spaces.getById(spaceId),
-            api.files.getBySpace(spaceId)
+            api.files.getBySpace(spaceId),
+            api.files.getRecent(spaceId, 5)
         ])
-            .then(([space, files]) => {
+            .then(([space, files, recent]) => {
                 const members = space.members || [];
                 const resolvedFiles = (files || []).map(file => {
+                    if (file.uploaderName === 'Unknown' || !file.uploaderName) {
+                        const uploaderId = file.uploadedBy;
+                        const uploader = members.find(m => m.id === uploaderId);
+                        if (uploader) {
+                            return { ...file, uploaderName: uploader.name || uploader.username };
+                        }
+                    }
+                    return file;
+                });
+                const resolvedRecent = (recent || []).map(file => {
                     if (file.uploaderName === 'Unknown' || !file.uploaderName) {
                         const uploaderId = file.uploadedBy;
                         const uploader = members.find(m => m.id === uploaderId);
@@ -61,6 +75,7 @@ export default function SpaceDetailsView() {
                     ...space,
                     files: resolvedFiles
                 });
+                setRecentFiles(resolvedRecent);
             })
             .catch(err => {
                 console.error("Failed to fetch space details or files:", err);
@@ -73,6 +88,9 @@ export default function SpaceDetailsView() {
                 } else {
                     navigate('/dashboard');
                 }
+            })
+            .finally(() => {
+                setRecentFilesLoading(false);
             });
     }, [spaceId, setActiveSpace, navigate]);
 
@@ -362,12 +380,16 @@ export default function SpaceDetailsView() {
                     {/* RECENT FILES */}
                     <div className="bg-white border-2 border-black rounded-2xl p-6 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-black flex items-center gap-2"><FileText size={20} /> Shared Files</h3>
+                            <h3 className="text-xl font-black flex items-center gap-2"><FileText size={20} /> Recent Files</h3>
                             <button onClick={openFilesModal} className="text-sm font-bold text-blue-600 hover:underline flex items-center gap-1">View All <ArrowLeft size={16} className="rotate-180" /></button>
                         </div>
                         <div className="space-y-3">
-                            {activeSpace.files && activeSpace.files.length > 0 ? (
-                                activeSpace.files.slice(0, 3).map((file, i) => (
+                            {recentFilesLoading ? (
+                                <div className="flex justify-center py-6">
+                                    <div className="animate-spin w-6 h-6 border-2 border-black border-t-accent rounded-full"></div>
+                                </div>
+                            ) : recentFiles && recentFiles.length > 0 ? (
+                                recentFiles.slice(0, 3).map((file, i) => (
                                     <div key={i} onClick={() => setViewingFile(file)} className="flex items-center gap-4 p-3 rounded-xl border-2 border-transparent hover:border-black hover:bg-gray-50 transition-all cursor-pointer group">
                                         <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center group-hover:scale-110 transition-transform">
                                             {getFileIcon(file.type)}

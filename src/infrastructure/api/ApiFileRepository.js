@@ -170,5 +170,20 @@ export function createApiFileRepository() {
                 type: 'link'
             });
         },
+
+        async getRecent(spaceId, limit = 5) {
+            const data = await httpClient.get(`/spaces/${spaceId}/storage/recent?page=1&pageSize=${limit}&Limit=${limit}`);
+            const apiFiles = data && data.files ? data.files : [];
+            const apiLinks = data && data.links ? data.links : [];
+            
+            const mappedFiles = apiFiles.map(file => FileMapper.fromApi(file));
+            
+            const mappedLinks = apiLinks.map(link => FileMapper.fromApi({
+                ...link,
+                type: 'link'
+            }));
+            
+            return [...mappedFiles, ...mappedLinks];
+        },
     };
 }

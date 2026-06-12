@@ -142,6 +142,7 @@ export const files = {
     move: (fileIds, folderId, userId, spaceId) => fileRepo.move(fileIds, folderId, userId, spaceId),
     copy: (fileIds, folderId, userId, spaceId) => fileRepo.copy(fileIds, folderId, userId, spaceId),
     createLink: (spaceId, name, url, uploadedBy, folderId) => fileRepo.createLink(spaceId, name, url, uploadedBy, folderId),
+    getRecent: (spaceId, limit) => fileRepo.getRecent(spaceId, limit),
 };
 
 // ============ ROLES ============
