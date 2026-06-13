@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bell, Check, X, User, MessageSquare, FileText, Zap, UserPlus, Loader2 } from 'lucide-react';
-import { useNotificationsStore, useSpacesStore, useAuthStore } from '../../store';
+import { useNavigate } from 'react-router-dom';
+import { useNotificationsStore, useSpacesStore, useAuthStore, useUIStore } from '../../store';
 
 const NOTIFICATION_ICONS = {
     invite: UserPlus,
@@ -22,12 +23,14 @@ const NOTIFICATION_COLORS = {
     system: 'bg-gray-100 text-gray-600',
 };
 
-function NotificationItem({ notification, onAcceptInvite, onDeclineInvite, onAcceptJoinRequest, onDeclineJoinRequest, onMarkRead }) {
+function NotificationItem({ notification, onAcceptInvite, onDeclineInvite, onAcceptJoinRequest, onDeclineJoinRequest, onMarkRead, onClosePanel }) {
     const [processing, setProcessing] = useState(null); // 'accept' | 'decline' | null
     const Icon = NOTIFICATION_ICONS[notification.type] || Bell;
     const colorClass = NOTIFICATION_COLORS[notification.type] || 'bg-gray-100 text-gray-600';
     const isInvite = notification.type === 'invite';
     const isJoinRequest = notification.type === 'join_request';
+
+    const navigate = useNavigate();
 
     const spaces = useSpacesStore(state => state.spaces) || [];
     let resolvedSpaceId = notification.spaceId;
@@ -40,11 +43,83 @@ function NotificationItem({ notification, onAcceptInvite, onDeclineInvite, onAcc
                 resolvedSpaceId = matchedSpace.id;
             }
         }
+        
+        // Fallback substring search over all space names
+        if (!resolvedSpaceId) {
+            const matchedSpace = spaces.find(s => s.name && notification.text.toLowerCase().includes(s.name.toLowerCase()));
+            if (matchedSpace) {
+                resolvedSpaceId = matchedSpace.id;
+            }
+        }
     }
     const resolvedRequestId = notification.requestId || notification.inviteId || notification.id;
 
     const showActions = (isInvite && (notification.inviteId || notification.spaceId)) || 
                         (isJoinRequest && resolvedSpaceId && resolvedRequestId);
+
+    const handleNotificationClick = (e) => {
+        // If they clicked on buttons (accept, decline, mark read), don't trigger the card navigation click
+        if (e.target.closest('button')) {
+            return;
+        }
+
+        // Mark as read
+        if (!notification.read) {
+            onMarkRead(notification.id);
+        }
+
+        // Close the panel
+        if (onClosePanel) {
+            onClosePanel();
+        }
+
+        const isChatOrMention = notification.type === 'mention' || 
+                                notification.type === 'chat' || 
+                                notification.type === 'message' || 
+                                (notification.text && (
+                                    notification.text.toLowerCase().includes('mentioned') ||
+                                    notification.text.toLowerCase().includes('chat') ||
+                                    notification.text.toLowerCase().includes('message')
+                                ));
+
+        if (isChatOrMention) {
+            if (resolvedSpaceId) {
+                navigate(`/dashboard/chat/${resolvedSpaceId}`);
+            }
+        } else if (notification.type === 'session') {
+            if (resolvedSpaceId) {
+                navigate(`/dashboard/session/${resolvedSpaceId}`);
+            }
+        } else if (notification.type === 'file') {
+            if (resolvedSpaceId) {
+                navigate(`/dashboard/spaces/${resolvedSpaceId}`);
+                setTimeout(() => {
+                    const { openFilesModal } = useUIStore.getState();
+                    openFilesModal();
+                }, 150);
+            }
+        } else if (notification.type === 'join_request') {
+            if (resolvedSpaceId) {
+                navigate(`/dashboard/spaces/${resolvedSpaceId}`);
+                setTimeout(() => {
+                    const { openMembersModal } = useUIStore.getState();
+                    openMembersModal();
+                }, 150);
+            }
+        } else if (notification.type === 'invite_response') {
+            if (resolvedSpaceId) {
+                navigate(`/dashboard/spaces/${resolvedSpaceId}`);
+                setTimeout(() => {
+                    const { openMembersModal } = useUIStore.getState();
+                    openMembersModal();
+                }, 150);
+            }
+        } else {
+            if (resolvedSpaceId) {
+                navigate(`/dashboard/spaces/${resolvedSpaceId}`);
+            }
+        }
+    };
 
     const handleAcceptClick = async () => {
         if (processing) return;
@@ -93,9 +168,10 @@ function NotificationItem({ notification, onAcceptInvite, onDeclineInvite, onAcc
 
     return (
         <div
-            className={`p-3 rounded-xl border-2 transition-all ${notification.read
-                ? 'border-gray-100 bg-gray-50 opacity-60'
-                : 'border-black bg-white hover:bg-gray-50'
+            onClick={handleNotificationClick}
+            className={`p-3 rounded-xl border-2 transition-all cursor-pointer ${notification.read
+                ? 'border-gray-100 bg-gray-50 opacity-60 hover:opacity-100'
+                : 'border-black bg-white hover:bg-gray-50 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
                 }`}
         >
             <div className="flex gap-3">
@@ -310,6 +386,7 @@ export default function NotificationsPanel({ isOpen, onClose, triggerRef }) {
                             onAcceptJoinRequest={handleAcceptJoinRequest}
                             onDeclineJoinRequest={handleDeclineJoinRequest}
                             onMarkRead={markAsRead}
+                            onClosePanel={onClose}
                         />
                     ))
                 )}
