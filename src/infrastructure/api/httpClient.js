@@ -117,7 +117,7 @@ async function parseError(response) {
         // Fallback if not JSON
     }
 
-    let message = 'An unexpected error occurred.';
+    let message = '';
     if (errorData.detail) {
         message = errorData.detail;
     } else if (errorData.title) {
@@ -126,6 +126,18 @@ async function parseError(response) {
         message = errorData.error;
     } else if (errorData.message) {
         message = errorData.message;
+    }
+
+    if (!message) {
+        if (response.status === 401) {
+            message = 'Invalid email/username or password.';
+        } else if (response.status === 403) {
+            message = 'You do not have permission to perform this action.';
+        } else if (response.status === 404) {
+            message = 'The requested resource was not found.';
+        } else {
+            message = 'An unexpected error occurred.';
+        }
     }
 
     // Format fields/model validation errors

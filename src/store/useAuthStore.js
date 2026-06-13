@@ -41,7 +41,10 @@ const useAuthStore = create((set, get) => ({
             localStorage.setItem('user', JSON.stringify(fullUser));
             return fullUser;
         } catch (err) {
-            const errorData = err.data || { error: err.message || 'Login failed' };
+            const errorData = {
+                ...(err.data || {}),
+                message: err.data?.message || err.data?.error || err.message || 'Login failed'
+            };
             set({ error: errorData, loading: false });
             throw err;
         }
@@ -61,7 +64,11 @@ const useAuthStore = create((set, get) => ({
             localStorage.setItem('user', JSON.stringify(fullUser));
             return fullUser;
         } catch (err) {
-            set({ error: err.message || 'Registration failed', loading: false });
+            const errorData = {
+                ...(err.data || {}),
+                message: err.data?.message || err.data?.error || err.message || 'Registration failed'
+            };
+            set({ error: errorData, loading: false });
             throw err;
         }
     },
