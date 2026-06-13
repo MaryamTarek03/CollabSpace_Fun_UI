@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Gamepad2, Terminal, ArrowLeftRight, Mic, Video, Info, Sparkles, User, RefreshCw } from 'lucide-react';
 import useUIStore from '../../../store/useUIStore';
+import useAuthStore from '../../../store/useAuthStore';
 
 export default function UnityWorldCanvas({ spaceId }) {
     const navigate = useNavigate();
@@ -20,6 +21,7 @@ export default function UnityWorldCanvas({ spaceId }) {
     const cameraEnabled = useUIStore((state) => state.sessionCameraEnabled);
     const setMicEnabled = useUIStore((state) => state.setSessionMicEnabled);
     const setCameraEnabled = useUIStore((state) => state.setSessionCameraEnabled);
+    const { user } = useAuthStore();
 
         const [isSandbox, setIsSandbox] = useState(false);
     const [isRealUnityLoaded, setIsRealUnityLoaded] = useState(false);
@@ -30,6 +32,65 @@ export default function UnityWorldCanvas({ spaceId }) {
     const logEvent = (source, message) => {
         const timestamp = new Date().toLocaleTimeString();
         setSandboxLogs((prev) => [...prev, { timestamp, source, message }]);
+    };
+
+    const callUnityExecute = (profileName, spaceId) => {
+        logEvent('System', `Calling execute with name: "${profileName}", key: "${spaceId}"`);
+        
+        // 1. Check window.execute or window.Execute
+        if (typeof window.execute === 'function') {
+            try {
+                window.execute(profileName, spaceId);
+                logEvent('React -> Unity', `window.execute('${profileName}', '${spaceId}') succeeded`);
+            } catch (err) {
+                logEvent('React -> Unity', `window.execute failed: ${err.message}`);
+            }
+        }
+        if (typeof window.Execute === 'function') {
+            try {
+                window.Execute(profileName, spaceId);
+                logEvent('React -> Unity', `window.Execute('${profileName}', '${spaceId}') succeeded`);
+            } catch (err) {
+                logEvent('React -> Unity', `window.Execute failed: ${err.message}`);
+            }
+        }
+
+        // 2. Check window.unityInstance.execute or window.unityInstance.Execute
+        if (window.unityInstance) {
+            if (typeof window.unityInstance.execute === 'function') {
+                try {
+                    window.unityInstance.execute(profileName, spaceId);
+                    logEvent('React -> Unity', `unityInstance.execute('${profileName}', '${spaceId}') succeeded`);
+                } catch (err) {
+                    logEvent('React -> Unity', `unityInstance.execute failed: ${err.message}`);
+                }
+            }
+            if (typeof window.unityInstance.Execute === 'function') {
+                try {
+                    window.unityInstance.Execute(profileName, spaceId);
+                    logEvent('React -> Unity', `unityInstance.Execute('${profileName}', '${spaceId}') succeeded`);
+                } catch (err) {
+                    logEvent('React -> Unity', `unityInstance.Execute failed: ${err.message}`);
+                }
+            }
+
+            // 3. SendMessage options (as individual arguments, as comma-separated string, and as JSON string)
+            const sendMessageTargets = ['ReactBridge', 'execute', 'Execute'];
+            sendMessageTargets.forEach(target => {
+                try {
+                    window.unityInstance.SendMessage(target, 'execute', profileName, spaceId);
+                    window.unityInstance.SendMessage(target, 'Execute', profileName, spaceId);
+                    
+                    window.unityInstance.SendMessage(target, 'execute', `${profileName},${spaceId}`);
+                    window.unityInstance.SendMessage(target, 'Execute', `${profileName},${spaceId}`);
+
+                    window.unityInstance.SendMessage(target, 'execute', JSON.stringify({ name: profileName, key: spaceId }));
+                    window.unityInstance.SendMessage(target, 'Execute', JSON.stringify({ name: profileName, key: spaceId }));
+                } catch (err) {
+                    // Fail silently for SendMessage targets that don't match
+                }
+            });
+        }
     };
 
     // Auto-scroll logs
@@ -123,6 +184,8 @@ export default function UnityWorldCanvas({ spaceId }) {
                 logEvent('Unity -> React', 'onUnityLoaded()');
                 setUnityLoadingProgress(100);
                 setIsRealUnityLoaded(true);
+                const profileName = user?.name || user?.username || 'Guest';
+                callUnityExecute(profileName, spaceId);
             }
         };
 
@@ -130,7 +193,7 @@ export default function UnityWorldCanvas({ spaceId }) {
         logEvent('System', 'Checking for Unity WebGL build files...');
         
         // Path to the Unity WebGL loader script
-        const loaderUrl = '/unity/Build/unity.loader.js';
+        const loaderUrl = '/unity/Build/BB.loader.js';
 
         // Check if build files exist by performing a fetch check
         fetch(loaderUrl, { method: 'HEAD' })
@@ -143,41 +206,79 @@ export default function UnityWorldCanvas({ spaceId }) {
                 }
             })
             .catch(() => {
-                logEvent('System', 'Unity WebGL build files not detected at /unity/Build/unity.loader.js');
+                logEvent('System', 'Unity WebGL build files not detected at /unity/Build/BB.loader.js');
                 switchToSandboxMode();
             });
 
         return () => {
-            // Clean up Unity instance if needed
-            if (window.unityInstance) {
+            const cleanupCanvas = (canvasElement) => {
                 try {
-                    window.unityInstance.Quit().then(() => {
-                        window.unityInstance = null;
-                        logEvent('System', 'Unity instance unloaded');
-                    });
-                } catch {
-                    window.unityInstance = null;
+                    const gl = canvasElement.getContext('webgl2') || canvasElement.getContext('webgl') || canvasElement.getContext('experimental-webgl');
+                    if (gl) {
+                        const loseContextExt = gl.getExtension('WEBGL_lose_context');
+                        if (loseContextExt) {
+                            loseContextExt.loseContext();
+                        }
+                    }
+                } catch (err) {
+                    console.warn('Failed to lose WebGL context:', err);
                 }
+                try {
+                    if (canvasElement.parentNode) {
+                        canvasElement.parentNode.removeChild(canvasElement);
+                    }
+                } catch (err) {
+                    console.warn('Failed to remove canvas element from parent:', err);
+                }
+            };
+
+            // Check if we have an active Unity instance and canvas
+            if (window.unityInstance && canvasRef.current) {
+                const instance = window.unityInstance;
+                window.unityInstance = null;
+                const canvas = canvasRef.current;
+
+                // Move canvas to document.body offscreen to keep WebGL context alive for Quit
+                try {
+                    canvas.style.position = 'fixed';
+                    canvas.style.left = '-9999px';
+                    canvas.style.top = '-9999px';
+                    canvas.style.width = '1px';
+                    canvas.style.height = '1px';
+                    document.body.appendChild(canvas);
+                } catch (err) {
+                    console.warn('Failed to move canvas to off-screen body container:', err);
+                }
+
+                try {
+                    instance.Quit()
+                        .then(() => {
+                            console.log('Unity instance successfully quit');
+                            cleanupCanvas(canvas);
+                        })
+                        .catch((err) => {
+                            console.warn('Unity instance Quit error:', err);
+                            cleanupCanvas(canvas);
+                        });
+                } catch (err) {
+                    console.warn('Unity instance Quit catch:', err);
+                    cleanupCanvas(canvas);
+                }
+            } else if (canvasRef.current) {
+                cleanupCanvas(canvasRef.current);
             }
-            if (scriptRef.current) {
-                document.head.removeChild(scriptRef.current);
-            }
+
             delete window.unityCallbacks;
         };
     }, [spaceId]);
 
     // Handle real Unity WebGL instantiation
     const loadUnityPlayer = (src) => {
-        const script = document.createElement('script');
-        script.src = src;
-        script.async = true;
-        script.onload = () => {
-            logEvent('System', 'Loader script loaded successfully. Instantiating Unity WebGL...');
-            
+        const instantiateUnity = () => {
             const config = {
-                dataUrl: '/unity/Build/unity.data',
-                frameworkUrl: '/unity/Build/unity.framework.js',
-                codeUrl: '/unity/Build/unity.wasm',
+                dataUrl: '/unity/Build/BB.data.gz',
+                frameworkUrl: '/unity/Build/BB.framework.js.gz',
+                codeUrl: '/unity/Build/BB.wasm.gz',
                 streamingAssetsUrl: 'StreamingAssets',
                 companyName: 'CollabSpace',
                 productName: 'CollabSpace3D',
@@ -193,6 +294,11 @@ export default function UnityWorldCanvas({ spaceId }) {
                     setIsRealUnityLoaded(true);
                     setUnityLoadingProgress(100);
                     logEvent('System', 'Unity WebGL Instance initialized successfully!');
+                    
+                    const profileName = user?.name || user?.username || 'Guest';
+                    setTimeout(() => {
+                        callUnityExecute(profileName, spaceId);
+                    }, 500);
                 })
                 .catch((err) => {
                     logEvent('System', `Initialization failed: ${err.message}`);
@@ -202,6 +308,20 @@ export default function UnityWorldCanvas({ spaceId }) {
                 logEvent('System', 'createUnityInstance function not found on window object.');
                 switchToSandboxMode();
             }
+        };
+
+        if (typeof window.createUnityInstance === 'function') {
+            logEvent('System', 'Unity loader already present. Instantiating Unity WebGL...');
+            instantiateUnity();
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = src;
+        script.async = true;
+        script.onload = () => {
+            logEvent('System', 'Loader script loaded successfully. Instantiating Unity WebGL...');
+            instantiateUnity();
         };
         script.onerror = () => {
             logEvent('System', 'Failed to load Unity loader script dynamically.');
@@ -223,6 +343,8 @@ export default function UnityWorldCanvas({ spaceId }) {
                 clearInterval(interval);
                 setIsSandbox(true);
                 logEvent('System', 'WebGL Sandbox Mode fully initialized and ready.');
+                const profileName = user?.name || user?.username || 'Guest';
+                logEvent('React -> Unity (Mock)', `Simulated execute('${profileName}', '${spaceId}')`);
             }
         }, 80);
     };
