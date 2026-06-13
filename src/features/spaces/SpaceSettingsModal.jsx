@@ -306,29 +306,46 @@ export default function SpaceSettingsModal() {
         const u = item.invitedUser ? {
             name: item.invitedUser.displayName || item.invitedUser.username || 'Unknown',
             username: item.invitedUser.username || 'unknown',
-            avatarImage: item.invitedUser.avatarUrl,
+            avatarImage: item.invitedUser.avatarImage || item.invitedUser.avatarUrl,
             avatarColor: item.invitedUser.avatarColor,
             date: item.createdAt
         } : {
-            name: item.name || 'Unknown',
-            username: item.username || 'unknown',
-            avatarImage: item.avatarImage || item.avatarUrl,
-            avatarColor: item.avatarColor,
+            name: item.name || item.userName || 'Unknown',
+            username: item.username || item.userName?.toLowerCase().replace(/\s+/g, '') || 'unknown',
+            avatarImage: item.avatarImage || item.userAvatarImage || item.avatarUrl,
+            avatarColor: item.avatarColor || item.userAvatar,
             date: item.bannedOn || item.createdAt
         };
 
         const displayDate = u.date ? new Date(u.date).toLocaleDateString() : '';
 
         return (
-            <div className={`flex items-center justify-between p-3 ${variant === 'red' ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'} border-2 rounded-xl`}>
-                <div className="flex items-center gap-3">
-                    <Avatar user={{ name: u.name, avatarImage: u.avatarImage, avatarColor: u.avatarColor }} size="sm" />
+            <div className={`flex items-center justify-between p-4 ${
+                variant === 'red' 
+                    ? 'bg-[#FFF5F5] hover:bg-[#FFF0F0]' 
+                    : 'bg-[#F5F8FF] hover:bg-[#EEF3FF]'
+                } border-2 border-black rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all`}>
+                <div className="flex items-center gap-4">
+                    <Avatar 
+                        user={{ name: u.name, avatarImage: u.avatarImage, avatarColor: u.avatarColor }} 
+                        size="md" 
+                        className="shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] !rounded-xl"
+                    />
                     <div>
-                        <p className="font-bold">{u.name}</p>
-                        <p className="text-xs text-gray-500">@{u.username}{displayDate ? ` • ${displayDate}` : ''}</p>
+                        <p className="font-black text-gray-900 text-base leading-tight">{u.name}</p>
+                        <p className="text-xs text-gray-500 font-bold mt-1">
+                            @{u.username}{displayDate ? ` • ${displayDate}` : ''}
+                        </p>
                     </div>
                 </div>
-                <Button onClick={action} variant={variant === 'red' ? 'success' : 'danger'} size="sm">{actionLabel}</Button>
+                <Button 
+                    onClick={action} 
+                    variant={variant === 'red' ? 'success' : 'danger'} 
+                    size="sm"
+                    className="!rounded-xl border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px]"
+                >
+                    {actionLabel}
+                </Button>
             </div>
         );
     };
@@ -606,7 +623,7 @@ export default function SpaceSettingsModal() {
                             <div className="bg-white border-2 border-black rounded-2xl p-6">
                                 {loadingInvites ? <div className="flex justify-center py-8"><Loader className="animate-spin text-gray-400" size={24} /></div>
                                     : pendingInvites.length === 0 ? <div className="text-center py-8 text-gray-500 font-medium">No pending invites</div>
-                                        : <div className="space-y-3">{pendingInvites.map(invite => <UserListItem key={invite.id} user={invite} action={() => handleRevokeInvite(invite.id)} actionLabel="Revoke" />)}</div>}
+                                        : <div className="space-y-4">{pendingInvites.map(invite => <UserListItem key={invite.id} user={invite} action={() => handleRevokeInvite(invite.id)} actionLabel="Revoke" />)}</div>}
                             </div>
                         </div>
                     )}
@@ -617,7 +634,7 @@ export default function SpaceSettingsModal() {
                             <div className="bg-white border-2 border-black rounded-2xl p-6">
                                 {loadingBans ? <div className="flex justify-center py-8"><Loader className="animate-spin text-gray-400" size={24} /></div>
                                     : bannedUsers.length === 0 ? <div className="text-center py-8 text-gray-500 font-medium">No banned users</div>
-                                        : <div className="space-y-3">{bannedUsers.map(ban => <UserListItem key={ban.id} user={ban} action={() => handleUnban(ban.id)} actionLabel="Unban" variant="red" />)}</div>}
+                                        : <div className="space-y-4">{bannedUsers.map(ban => <UserListItem key={ban.id} user={ban} action={() => handleUnban(ban.id)} actionLabel="Unban" variant="red" />)}</div>}
                             </div>
                         </div>
                     )}
