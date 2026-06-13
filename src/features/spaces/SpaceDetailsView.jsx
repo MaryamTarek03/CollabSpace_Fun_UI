@@ -143,7 +143,8 @@ export default function SpaceDetailsView() {
                     // Refresh spaces list to reflect removal
                     await useSpacesStore.getState().fetchSpaces();
                     setActiveSpace(null);
-                    setCurrentView('dashboard');
+                    setActiveChatSpace(null);
+                    navigate('/dashboard');
                 } catch (err) {
                     console.error('Failed to leave space:', err);
                 }
