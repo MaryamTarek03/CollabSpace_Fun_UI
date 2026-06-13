@@ -58,7 +58,9 @@ export const SpaceMapper = {
         const ownerId = data.owner?.id || data.ownerId || null;
         const ownerName = data.owner?.name || data.ownerName || 'Unknown';
         const visibility = (data.privacy || data.visibility || 'public').toLowerCase();
-        const thumbnail = data.thumbnailImageUrl || data.thumbnailColor || data.thumbnail || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+        const thumbnail = data.thumbnailImageUrl || data.thumbnailImage || data.thumbnailGradient || data.thumbnailColor || data.thumbnail || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+        const thumbnailPosition = data.thumbnailPosition || data.thumbnailposition || '50% 50%';
+        const thumbnailGradient = data.thumbnailGradient || null;
         
         let type = null;
         if (data.spaceType !== undefined && data.spaceType !== null) {
@@ -85,6 +87,8 @@ export const SpaceMapper = {
             ownerName,
             visibility,
             thumbnail,
+            thumbnailPosition,
+            thumbnailGradient,
             // Map nested entities using their mappers
             members: MemberMapper.fromApiList(data.members),
             files: FileMapper.fromApiList(data.files),
@@ -104,6 +108,7 @@ export const SpaceMapper = {
             ownerId: space.ownerId,
             thumbnail: space.thumbnail,
             thumbnailPosition: space.thumbnailPosition,
+            thumbnailGradient: space.thumbnailGradient,
             visibility: space.visibility,
         };
     },

@@ -177,7 +177,8 @@ export default function SpaceDetailsView() {
         setIsSavingPosition(true);
         try {
             const newPosition = `50% ${repositionY}%`;
-            const updated = await api.spaces.update(activeSpace.id, { thumbnailPosition: newPosition });
+            const currentGradient = activeSpace.thumbnailGradient || (activeSpace.thumbnail?.startsWith('linear-gradient') ? activeSpace.thumbnail : null);
+            const updated = await api.spaces.saveThumbnailPosition(activeSpace.id, newPosition, currentGradient);
             setActiveSpace(updated);
             // Also update list in background
             useSpacesStore.getState().fetchSpaces();

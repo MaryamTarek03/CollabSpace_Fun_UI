@@ -37,6 +37,7 @@ export function createSpace(data = {}) {
         ownerName: data.ownerName || 'Unknown',
         thumbnail: data.thumbnail || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         thumbnailPosition: data.thumbnailPosition || data.thumbnailposition || '50% 50%',
+        thumbnailGradient: data.thumbnailGradient || null,
         visibility: data.visibility || 'public',
         isOnline: data.isOnline ?? false,
         requestsCount: data.requestsCount || 0,

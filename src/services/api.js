@@ -58,6 +58,7 @@ export const spaces = {
     rejectRequest: (spaceId, requestId) => spaceRepo.rejectRequest(spaceId, requestId),
     transferOwnership: (spaceId, currentOwnerId, newOwnerId) => spaceRepo.transferOwnership(spaceId, currentOwnerId, newOwnerId),
     uploadThumbnail: (spaceId, imageData) => spaceRepo.uploadThumbnail(spaceId, imageData),
+    saveThumbnailPosition: (spaceId, position, gradient) => spaceRepo.saveThumbnailPosition(spaceId, position, gradient),
     getBans: (spaceId) => spaceRepo.getBans(spaceId),
     unban: (spaceId, banId) => spaceRepo.unban(spaceId, banId),
 };

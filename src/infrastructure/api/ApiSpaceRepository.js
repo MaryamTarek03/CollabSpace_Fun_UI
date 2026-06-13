@@ -95,12 +95,23 @@ export function createApiSpaceRepository() {
                     if (isGradient) {
                         const match = data.thumbnail.match(/#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})/);
                         hexColor = match ? match[0] : '#667eea';
+                        
+                        await httpClient.put(`/spaces/${id}/thumbnail-position`, {
+                            position: data.thumbnailPosition || '50% 50%',
+                            gradient: data.thumbnail
+                        });
                     }
                     const emptyFormData = new FormData();
                     await httpClient.patch(`/spaces/${id}/thumbnail?color=${encodeURIComponent(hexColor)}`, emptyFormData);
                 }
             }
 
+            const updatedSpace = await httpClient.get(`/spaces/${id}`);
+            return SpaceMapper.fromApi(updatedSpace);
+        },
+
+        async saveThumbnailPosition(id, position, gradient) {
+            await httpClient.put(`/spaces/${id}/thumbnail-position`, { position, gradient });
             const updatedSpace = await httpClient.get(`/spaces/${id}`);
             return SpaceMapper.fromApi(updatedSpace);
         },
