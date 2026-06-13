@@ -61,6 +61,8 @@ export function createMessage(data = {}) {
 
         // Forward fields
         forwardedFromChannel: data.forwardedFromChannel || null,
+        isForwarded: data.isForwarded || false,
+        forwardedFrom: data.forwardedFrom || null,
 
         // Soft delete fields
         deletedAt: data.deletedAt || (data.isDeleted ? (data.updatedAt || data.createdAt || new Date().toISOString()) : null),

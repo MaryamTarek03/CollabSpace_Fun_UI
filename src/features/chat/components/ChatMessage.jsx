@@ -78,7 +78,7 @@ export default function ChatMessage({ msg, onForward }) {
     // Time limit (15 mins)
     const isWithinTimeLimit = (Date.now() - new Date(msg.createdAt).getTime() < 15 * 60 * 1000);
 
-    const canEdit = isMe && isWithinTimeLimit && !msg.forwardedFromChannel;
+    const canEdit = isMe && isWithinTimeLimit && !msg.forwardedFromChannel && !msg.isForwarded;
     const canDelete = canEdit || isOwner || isAdmin;
 
     // Avatar - use message avatar data directly (server already joins user data)
@@ -232,10 +232,10 @@ export default function ChatMessage({ msg, onForward }) {
                     ) : (
                         <>
                             {/* Forwarded label */}
-                            {msg.forwardedFromChannel && (
+                            {(msg.isForwarded || msg.forwardedFrom || msg.forwardedFromChannel) && (
                                 <div className="text-[10px] uppercase tracking-wider font-bold text-gray-400 mb-1 flex items-center gap-1.5 ml-1">
                                     <Forward size={12} className="text-gray-300" />
-                                    <span>Forwarded from <span className="text-gray-500">#{msg.forwardedFromChannel}</span></span>
+                                    <span>Forwarded from <span className="text-gray-500">#{msg.forwardedFromChannel || (typeof msg.forwardedFrom === 'object' ? msg.forwardedFrom?.name : msg.forwardedFrom) || 'Unknown'}</span></span>
                                 </div>
                             )}
                             {/* Reply quote - clickable to jump to original */}

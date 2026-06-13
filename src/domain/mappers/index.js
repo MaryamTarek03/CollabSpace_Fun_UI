@@ -197,6 +197,29 @@ export const MessageMapper = {
             });
         }
 
+        // Map forward fields
+        let forwardedFromChannel = null;
+        let forwardedFrom = data.forwardedFrom || null;
+
+        if (data.forwardedFromChannel) {
+            if (typeof data.forwardedFromChannel === 'object') {
+                forwardedFromChannel = data.forwardedFromChannel.name || data.forwardedFromChannel.displayName || data.forwardedFromChannel.id || null;
+            } else {
+                forwardedFromChannel = String(data.forwardedFromChannel);
+            }
+        }
+
+        if (data.forwardedFrom) {
+            if (typeof data.forwardedFrom === 'object') {
+                forwardedFromChannel = forwardedFromChannel || data.forwardedFrom.name || data.forwardedFrom.displayName || data.forwardedFrom.id || null;
+                forwardedFrom = data.forwardedFrom;
+            } else {
+                forwardedFromChannel = forwardedFromChannel || String(data.forwardedFrom);
+                forwardedFrom = String(data.forwardedFrom);
+            }
+        }
+        const isForwarded = !!(data.isForwarded || forwardedFrom || forwardedFromChannel);
+
         return createMessage({
             ...data,
             senderId,
@@ -208,6 +231,9 @@ export const MessageMapper = {
             replyToId: data.replyToId || (data.parentMessage ? data.parentMessage.id : null),
             attachments,
             time: data.time || formatRelativeTime(data.createdAt || new Date()),
+            forwardedFromChannel,
+            forwardedFrom,
+            isForwarded,
         });
     },
 
