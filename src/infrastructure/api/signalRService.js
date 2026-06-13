@@ -13,7 +13,8 @@ class SignalRService {
             return;
         }
 
-        const hubUrl = import.meta.env.VITE_SIGNALR_HUB_URL || 'http://localhost:5153/chathub';
+        const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:5153';
+        const hubUrl = import.meta.env.VITE_SIGNALR_HUB_URL || `${serverUrl}/chathub`;
         console.log("[SignalR Service] Connecting to Hub URL:", hubUrl);
 
         this.connection = new signalR.HubConnectionBuilder()
