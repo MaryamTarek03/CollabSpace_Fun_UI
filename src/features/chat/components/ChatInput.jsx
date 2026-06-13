@@ -2,19 +2,24 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, X, Reply, Paperclip, FileText, Loader2 } from 'lucide-react';
 import { useChatStore } from '../../../store';
 import MentionList from './MentionList';
+import FileMentionList from './FileMentionList';
 
 export default function ChatInput({
     onSendMessage,
     spaceName,
-    isSending = false
+    isSending = false,
+    spaceFiles = []
 }) {
     const { replyingTo, clearReplyingTo, members } = useChatStore();
     const [text, setText] = useState('');
     const [selectedFiles, setSelectedFiles] = useState([]);
     const [mentionFilter, setMentionFilter] = useState('');
     const [showMentions, setShowMentions] = useState(false);
-    const [cursorPosition, setCursorPosition] = useState(0);
     const [mentionCoords, setMentionCoords] = useState({ left: 0 });
+    const [fileFilter, setFileFilter] = useState('');
+    const [showFileMentions, setShowFileMentions] = useState(false);
+    const [fileCoords, setFileCoords] = useState({ left: 0 });
+    const [cursorPosition, setCursorPosition] = useState(0);
     const inputRef = useRef(null);
     const fileInputRef = useRef(null);
 
@@ -28,30 +33,28 @@ export default function ChatInput({
     useEffect(() => {
         return () => {
             selectedFilesRef.current.forEach(item => {
-                if (item.previewUrl) {
+                if (item.previewUrl && item.file) {
                     URL.revokeObjectURL(item.previewUrl);
                 }
             });
         };
     }, []);
 
-    // Monitor input for @ mentions
+    // Monitor input for @ and # mentions
     useEffect(() => {
         const lastAtIndex = text.lastIndexOf('@', cursorPosition - 1);
+        const lastHashIndex = text.lastIndexOf('#', cursorPosition - 1);
 
-        if (lastAtIndex !== -1) {
+        if (lastAtIndex !== -1 && (lastHashIndex === -1 || lastAtIndex > lastHashIndex)) {
             const textAfterAt = text.slice(lastAtIndex + 1, cursorPosition);
-
-            // Check if there's a space before the @ (or it's at start)
             const isStartOrSpace = lastAtIndex === 0 || text[lastAtIndex - 1] === ' ';
-            // Check if there are no spaces in the query (simple username matching)
             const hasNoSpaces = !textAfterAt.includes(' ');
 
             if (isStartOrSpace && hasNoSpaces) {
                 setMentionFilter(textAfterAt);
                 setShowMentions(true);
+                setShowFileMentions(false);
 
-                // Calculate position for popup
                 const inputRect = inputRef.current?.getBoundingClientRect();
                 if (inputRect) {
                     const leftOffset = Math.min((lastAtIndex * 8) + 20, inputRect.width - 220);
@@ -59,9 +62,27 @@ export default function ChatInput({
                 }
                 return;
             }
+        } else if (lastHashIndex !== -1 && (lastAtIndex === -1 || lastHashIndex > lastAtIndex)) {
+            const textAfterHash = text.slice(lastHashIndex + 1, cursorPosition);
+            const isStartOrSpace = lastHashIndex === 0 || text[lastHashIndex - 1] === ' ';
+            const hasNoSpaces = !textAfterHash.includes(' ');
+
+            if (isStartOrSpace && hasNoSpaces) {
+                setFileFilter(textAfterHash);
+                setShowFileMentions(true);
+                setShowMentions(false);
+
+                const inputRect = inputRef.current?.getBoundingClientRect();
+                if (inputRect) {
+                    const leftOffset = Math.min((lastHashIndex * 8) + 20, inputRect.width - 220);
+                    setFileCoords({ left: leftOffset });
+                }
+                return;
+            }
         }
 
         setShowMentions(false);
+        setShowFileMentions(false);
     }, [text, cursorPosition]);
 
     const handleMentionSelect = (member) => {
@@ -83,22 +104,59 @@ export default function ChatInput({
         }
     };
 
+    const handleFileMentionSelect = (file) => {
+        const lastHashIndex = text.lastIndexOf('#', cursorPosition - 1);
+        const textBeforeHash = text.slice(0, lastHashIndex);
+        const textAfterCursor = text.slice(cursorPosition);
+
+        const insertedName = file.name;
+        const newValue = `${textBeforeHash}#${insertedName} ${textAfterCursor}`;
+        setText(newValue);
+        setShowFileMentions(false);
+
+        // Add to selectedFiles as an existing file
+        const alreadyAttached = selectedFiles.some(f => f.fileId === file.id);
+        if (!alreadyAttached) {
+            const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5153/api';
+            const isImage = file.mimeType?.startsWith('image/') || file.name?.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+            const previewUrl = isImage ? `${baseUrl}/spaces/storage/files/${file.id}/download` : null;
+
+            setSelectedFiles(prev => [...prev, {
+                id: Math.random().toString(36).substring(2, 9),
+                fileId: file.id,
+                name: file.name,
+                mimeType: file.mimeType || file.type,
+                size: file.size,
+                previewUrl
+            }].slice(0, 5)); // Max 5 attachments
+        }
+
+        if (inputRef.current) {
+            inputRef.current.focus();
+            setTimeout(() => {
+                const newCursorPos = lastHashIndex + 1 + insertedName.length + 1;
+                inputRef.current.setSelectionRange(newCursorPos, newCursorPos);
+            }, 0);
+        }
+    };
+
     const handleInputKeyDown = (e) => {
         if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-            if (showMentions) return;
+            if (showMentions || showFileMentions) return;
         }
 
         if (e.key === 'Enter') {
-            if (showMentions) {
+            if (showMentions || showFileMentions) {
                 e.preventDefault();
                 return;
             }
         }
 
         if (e.key === 'Escape') {
-            if (showMentions) {
+            if (showMentions || showFileMentions) {
                 e.preventDefault();
                 setShowMentions(false);
+                setShowFileMentions(false);
                 return;
             }
             if (replyingTo) {
@@ -131,7 +189,7 @@ export default function ChatInput({
 
     const removeFile = (index) => {
         const item = selectedFiles[index];
-        if (item?.previewUrl) {
+        if (item?.previewUrl && item.file) {
             URL.revokeObjectURL(item.previewUrl);
         }
         setSelectedFiles(prev => prev.filter((_, i) => i !== index));
@@ -149,6 +207,17 @@ export default function ChatInput({
                     onSelect={handleMentionSelect}
                     onClose={() => setShowMentions(false)}
                     position={mentionCoords}
+                />
+            )}
+
+            {/* File Mention List Popup */}
+            {showFileMentions && (
+                <FileMentionList
+                    files={spaceFiles}
+                    filter={fileFilter}
+                    onSelect={handleFileMentionSelect}
+                    onClose={() => setShowFileMentions(false)}
+                    position={fileCoords}
                 />
             )}
 
@@ -182,7 +251,7 @@ export default function ChatInput({
                                     <div className="w-16 h-16 rounded-xl border-2 border-black overflow-hidden bg-gray-100">
                                         <img
                                             src={fileObj.previewUrl}
-                                            alt={fileObj.file.name}
+                                            alt={fileObj.file?.name || fileObj.name}
                                             className="w-full h-full object-cover"
                                         />
                                     </div>
@@ -190,7 +259,7 @@ export default function ChatInput({
                                     <div className="w-16 h-16 rounded-xl border-2 border-black bg-gray-100 flex flex-col items-center justify-center p-1">
                                         <FileText size={20} className="text-gray-500" />
                                         <span className="text-[8px] text-gray-500 truncate w-full text-center mt-1">
-                                            {fileObj.file.name.split('.').pop()?.toUpperCase()}
+                                            {(fileObj.file?.name || fileObj.name).split('.').pop()?.toUpperCase()}
                                         </span>
                                     </div>
                                 )}
@@ -209,18 +278,19 @@ export default function ChatInput({
             <div className="p-4">
                 <form onSubmit={async (e) => {
                     e.preventDefault();
-                    if (showMentions) {
+                    if (showMentions || showFileMentions) {
                         return;
                     }
                     if (!hasContent || isSending) return;
 
-                    const filesToSend = selectedFiles.map(item => item.file);
-                    const success = await onSendMessage(text, filesToSend);
+                    const filesToSend = selectedFiles.filter(item => item.file).map(item => item.file);
+                    const existingFileIds = selectedFiles.filter(item => item.fileId).map(item => item.fileId);
+                    const success = await onSendMessage(text, filesToSend, existingFileIds);
                     if (success) {
                         setText('');
                         // Revoke all preview URLs before clearing
                         selectedFiles.forEach(item => {
-                            if (item.previewUrl) {
+                            if (item.previewUrl && item.file) {
                                 URL.revokeObjectURL(item.previewUrl);
                             }
                         });

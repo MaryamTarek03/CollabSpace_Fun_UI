@@ -114,8 +114,8 @@ export default function ChatView() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [currentMessages]);
 
-    const handleSendMessage = async (text, files) => {
-        const hasContent = text.trim() || files.length > 0;
+    const handleSendMessage = async (text, files, existingFileIds = []) => {
+        const hasContent = text.trim() || files.length > 0 || existingFileIds.length > 0;
         if (!hasContent || !activeChatSpace) return false;
 
         setIsUploading(true);
@@ -155,7 +155,8 @@ export default function ChatView() {
                 mentions: mentions,
                 mentionEveryone,
                 mentionRoles: mentionRoles.length > 0 ? [...new Set(mentionRoles)] : undefined,
-                files: files
+                files: files,
+                attachmentFileIds: existingFileIds
             };
 
             await sendMessage(messageData);
@@ -334,6 +335,7 @@ export default function ChatView() {
                     onSendMessage={handleSendMessage}
                     spaceName={activeChannel?.name || activeChatSpace.name}
                     isSending={isUploading}
+                    spaceFiles={activeSpace?.files || []}
                 />
             </div>
 
