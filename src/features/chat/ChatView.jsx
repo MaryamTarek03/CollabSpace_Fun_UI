@@ -1,10 +1,10 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { MessageSquare, ArrowLeft, X, Forward, Hash } from 'lucide-react';
+import { MessageSquare, ArrowLeft, X, Forward, Hash, Menu, Files, Users, UserPlus, Settings } from 'lucide-react';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
 import ChatSidebar from './components/ChatSidebar';
-import { useChatStore, useSpacesStore, useAuthStore } from '../../store';
+import { useChatStore, useSpacesStore, useAuthStore, useUIStore } from '../../store';
 import ModalWrapper from '../../shared/components/ModalWrapper';
 import api from '../../services/api';
 import { isImageThumbnail, getSpaceThumbnailStyle, getSpaceThumbnailUrl } from '../../shared/utils/helpers';
@@ -27,25 +27,71 @@ export default function ChatView() {
         members
     } = useChatStore();
 
-    const { spaces } = useSpacesStore();
+    const { spaces, activeSpace, setActiveSpace } = useSpacesStore();
     const { user } = useAuthStore();
+    const {
+        openFilesModal,
+        openMembersModal,
+        openInviteModal,
+        openSpaceSettingsModal
+    } = useUIStore();
 
     const messagesEndRef = useRef(null);
     const currentMessages = messages;
 
-    // Set active chat space based on route param
+    // Mobile sidebar state
+    const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+    // Set active chat space based on route param and load full space details in background
     useEffect(() => {
         if (spaceId) {
-            if (!activeChatSpace || activeChatSpace.id !== spaceId) {
-                const space = spaces.find(s => s.id === spaceId);
-                if (space) {
+            // Find space locally first for responsive loading
+            const space = spaces.find(s => s.id === spaceId);
+            if (space) {
+                if (!activeChatSpace || activeChatSpace.id !== spaceId) {
                     setActiveChatSpace(space);
                 }
+                if (!activeSpace || activeSpace.id !== spaceId) {
+                    setActiveSpace(space);
+                }
             }
+
+            // Fetch full space details in background to sync for space-bound modals (Members, Settings, Files)
+            const loadFullSpace = async () => {
+                try {
+                    const [fullSpace, files] = await Promise.all([
+                        api.spaces.getById(spaceId),
+                        api.files.getBySpace(spaceId).catch(() => [])
+                    ]);
+                    
+                    if (fullSpace) {
+                        const membersList = fullSpace.members || [];
+                        const resolvedFiles = (files || []).map(file => {
+                            if (file.uploaderName === 'Unknown' || !file.uploaderName) {
+                                const uploaderId = file.uploadedBy;
+                                const uploader = membersList.find(m => m.id === uploaderId);
+                                if (uploader) {
+                                    return { ...file, uploaderName: uploader.name || uploader.username };
+                                }
+                            }
+                            return file;
+                        });
+                        setActiveSpace({
+                            ...fullSpace,
+                            files: resolvedFiles
+                        });
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch full space details in chat view:", err);
+                }
+            };
+            
+            loadFullSpace();
         } else {
             setActiveChatSpace(null);
+            setActiveSpace(null);
         }
-    }, [spaceId, activeChatSpace, spaces, setActiveChatSpace]);
+    }, [spaceId, spaces, setActiveChatSpace, setActiveSpace]);
 
     // Set active channel based on route param
     useEffect(() => {
@@ -138,6 +184,16 @@ export default function ChatView() {
         }
     };
 
+    // Calculate permissions for quick actions based on activeSpace
+    const activeSpaceMembers = activeSpace?.members || members || [];
+    const currentUserMember = activeSpaceMembers.find(m => m.userId === user?.id || m.id === user?.id);
+    const userRole = currentUserMember?.role || null;
+    const isOwner = userRole === 'Owner' || activeSpace?.ownerId === user?.id;
+    const isAdmin = userRole === 'Admin';
+    const canAccessSettings = isOwner || isAdmin;
+    const isPrivate = activeSpace?.visibility === 'private';
+    const canInvite = !isPrivate || canAccessSettings;
+
     // Chat Lobby - No active space selected
     if (!activeChatSpace) {
         return (
@@ -174,9 +230,22 @@ export default function ChatView() {
         <div className="h-[calc(100vh-4rem)] flex gap-6">
             <ChatSidebar />
 
+            {/* Mobile Sidebar/Drawer overlay */}
+            {isMobileSidebarOpen && (
+                <div className="fixed inset-0 z-50 lg:hidden flex">
+                    <div 
+                        className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity" 
+                        onClick={() => setIsMobileSidebarOpen(false)}
+                    />
+                    <div className="relative w-80 max-w-[calc(100vw-3rem)] h-full bg-[#FFFDF5] border-r-2 border-black flex flex-col z-10 shadow-[4px_0px_0px_0px_rgba(0,0,0,1)] animate-in slide-in-from-left duration-200">
+                        <ChatSidebar isMobile={true} onClose={() => setIsMobileSidebarOpen(false)} />
+                    </div>
+                </div>
+            )}
+
             <div className="flex-1 bg-white border-2 border-black rounded-3xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] overflow-hidden flex flex-col relative">
-                <div className="p-4 border-b-2 border-black flex justify-between items-center bg-gray-50">
-                    <div className="flex items-center gap-3">
+                <div className="p-4 border-b-2 border-black flex justify-between items-center bg-gray-50 gap-4">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
                         <button 
                             onClick={() => {
                                 const spaceId = activeChatSpace?.id;
@@ -187,18 +256,72 @@ export default function ChatView() {
                                     navigate('/dashboard/chat');
                                 }
                             }} 
-                            className="lg:hidden p-2 hover:bg-white rounded-lg"
+                            className="lg:hidden p-2 hover:bg-white rounded-lg border-2 border-transparent hover:border-black transition-all shrink-0"
+                            title="Back"
                         >
                             <ArrowLeft size={20} />
                         </button>
-                        <div className="w-10 h-10 rounded-xl border-2 border-black flex items-center justify-center font-bold text-lg overflow-hidden" style={getSpaceThumbnailStyle(activeChatSpace.thumbnail)}>
+                        
+                        {/* Hamburger Menu button on mobile */}
+                        <button
+                            onClick={() => setIsMobileSidebarOpen(true)}
+                            className="lg:hidden p-2 hover:bg-white rounded-lg border-2 border-transparent hover:border-black transition-all shrink-0"
+                            title="Open Channels"
+                        >
+                            <Menu size={20} />
+                        </button>
+
+                        <div className="w-10 h-10 rounded-xl border-2 border-black flex items-center justify-center font-bold text-lg overflow-hidden shrink-0" style={getSpaceThumbnailStyle(activeChatSpace.thumbnail)}>
                             {isImageThumbnail(activeChatSpace.thumbnail) ? (
                                 <img src={getSpaceThumbnailUrl(activeChatSpace.thumbnail)} alt={activeChatSpace.name} className="w-full h-full object-cover" />
                             ) : (
                                 <span>#</span>
                             )}
                         </div>
-                        <div><h3 className="font-black text-lg">{activeChannel?.name || 'Select a channel'}</h3><p className="text-xs font-bold text-gray-500">{activeChannel?.description || activeChatSpace.name}</p></div>
+                        <div className="min-w-0 flex-1">
+                            <h3 className="font-black text-lg truncate">
+                                {activeChannel ? `#${activeChannel.name}` : 'Select a channel'}
+                            </h3>
+                            <p className="text-xs font-bold text-gray-500 truncate">
+                                {activeChannel?.description || activeChatSpace.name}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Quick Space Actions */}
+                    <div className="flex items-center gap-2 shrink-0">
+                        <button
+                            onClick={openFilesModal}
+                            className="p-2 bg-white hover:bg-accent-100 border-2 border-black rounded-xl shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[-1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center justify-center shrink-0"
+                            title="Files"
+                        >
+                            <Files size={18} />
+                        </button>
+                        <button
+                            onClick={openMembersModal}
+                            className="p-2 bg-white hover:bg-accent-100 border-2 border-black rounded-xl shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[-1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center justify-center shrink-0"
+                            title="Members"
+                        >
+                            <Users size={18} />
+                        </button>
+                        {canInvite && (
+                            <button
+                                onClick={openInviteModal}
+                                className="p-2 bg-white hover:bg-accent-100 border-2 border-black rounded-xl shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[-1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center justify-center shrink-0"
+                                title="Invite Members"
+                            >
+                                <UserPlus size={18} />
+                            </button>
+                        )}
+                        {canAccessSettings && (
+                            <button
+                                onClick={openSpaceSettingsModal}
+                                className="p-2 bg-white hover:bg-accent-100 border-2 border-black rounded-xl shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[-1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center justify-center shrink-0"
+                                title="Space Settings"
+                            >
+                                <Settings size={18} />
+                            </button>
+                        )}
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px]">

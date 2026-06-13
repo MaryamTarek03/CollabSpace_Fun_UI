@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Hash, Plus, Edit2, Trash2, Check, X } from 'lucide-react';
 import { useChatStore, useAuthStore, useUIStore } from '../../../store';
 
-export default function ChatSidebar() {
+export default function ChatSidebar({ isMobile = false, onClose = null }) {
     const navigate = useNavigate();
     const location = useLocation();
     const { activeChatSpace, setActiveChatSpace, channels, activeChannel, setActiveChannel, createChannel, updateChannel, deleteChannel, members } = useChatStore();
@@ -62,10 +62,17 @@ export default function ChatSidebar() {
     };
 
     return (
-        <div className="w-80 bg-white border-2 border-black rounded-3xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] overflow-hidden hidden lg:flex flex-col">
+        <div className={isMobile 
+            ? "w-full h-full bg-[#FFFDF5] flex flex-col" 
+            : "w-80 bg-white border-2 border-black rounded-3xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] overflow-hidden hidden lg:flex flex-col"
+        }>
             <div className="p-6 border-b-2 border-black bg-accent-50 flex items-center gap-2">
                 <button 
                     onClick={() => {
+                        if (isMobile && onClose) {
+                            onClose();
+                            return;
+                        }
                         const spaceId = activeChatSpace?.id;
                         setActiveChatSpace(null);
                         if (location.state?.fromSpace && spaceId) {
@@ -79,6 +86,14 @@ export default function ChatSidebar() {
                     <ArrowLeft size={20} />
                 </button>
                 <h2 className="text-xl font-black truncate flex-1">{activeChatSpace.name}</h2>
+                {isMobile && onClose && (
+                    <button 
+                        onClick={onClose}
+                        className="p-1 hover:bg-white rounded-lg transition-colors text-gray-500 hover:text-black"
+                    >
+                        <X size={20} />
+                    </button>
+                )}
             </div>
 
             {/* Channels Header */}
@@ -122,7 +137,12 @@ export default function ChatSidebar() {
                             ? 'bg-accent-100 border-2 border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] font-bold'
                             : 'hover:bg-gray-50 border-2 border-transparent'
                             }`}
-                        onClick={() => editingId !== channel.id && setActiveChannel(channel)}
+                        onClick={() => {
+                            if (editingId !== channel.id) {
+                                setActiveChannel(channel);
+                                if (isMobile && onClose) onClose();
+                            }
+                        }}
                     >
                         {editingId === channel.id ? (
                             <>

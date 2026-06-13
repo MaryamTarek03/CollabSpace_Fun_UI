@@ -52,6 +52,8 @@ export default function AppLayout() {
 
     // Check if we're on dashboard route
     const isDashboard = location.pathname === '/';
+    // Hide mobile nav inside active chat rooms to give room to the chat input
+    const isChatRoom = location.pathname.startsWith('/dashboard/chat/');
 
     // Initialize theme on mount
     useEffect(() => {
@@ -84,7 +86,7 @@ export default function AppLayout() {
             <Sidebar />
 
             {/* Main Content Area */}
-            <main className="md:ml-28 p-4 md:p-8 pb-20 md:pb-8 min-h-screen transition-all duration-300">
+            <main className={`md:ml-28 p-4 md:p-8 min-h-screen transition-all duration-300 ${isChatRoom ? 'pb-4' : 'pb-20 md:pb-8'}`}>
 
                 {/* Loading State (only on dashboard) */}
                 {spacesLoading && isDashboard && (
@@ -128,7 +130,7 @@ export default function AppLayout() {
             )}
 
             {/* Mobile Navigation */}
-            <MobileNav />
+            {!isChatRoom && <MobileNav />}
 
         </div>
     );
