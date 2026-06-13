@@ -174,7 +174,8 @@ export const MessageMapper = {
                 id: data.parentMessage.id,
                 sender: parentSender,
                 text: data.parentMessage.text || '',
-                deletedAt: data.parentMessage.isDeleted ? (data.parentMessage.createdAt || new Date().toISOString()) : null
+                deletedAt: data.parentMessage.isDeleted ? (data.parentMessage.createdAt || new Date().toISOString()) : null,
+                mentions: data.parentMessage.mentions || null
             };
         }
 

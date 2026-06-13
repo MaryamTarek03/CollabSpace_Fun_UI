@@ -204,6 +204,96 @@ export default function ChatMessage({ msg, onForward }) {
         );
     }
 
+    const parseText = (text, messageMentions, forceLightBg = false) => {
+        if (!text) return '';
+        
+        const isDarkBubble = isMe && !forceLightBg;
+        const textColorClass = isDarkBubble ? 'text-accent-300' : 'text-accent-600';
+        
+        return text.split(/(@\[[a-zA-Z]+\]|@\{[a-fA-F0-9-]+\}|@[a-zA-Z0-9_]+)/g).map((part, index) => {
+            // Special mentions - @[keyword]
+            if (part.startsWith('@[')) {
+                const keyword = part.slice(2, -1).toLowerCase();
+
+                if (keyword === 'everyone') {
+                    return <span key={index} className="font-black text-white bg-red-500 px-1 rounded mx-0.5 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] text-xs py-0.5">{part}</span>;
+                }
+                if (keyword === 'admins' || keyword === 'admin') {
+                    return <span key={index} className="font-black text-black bg-yellow-400 px-1 rounded mx-0.5 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] text-xs py-0.5">{part}</span>;
+                }
+                if (keyword === 'owner') {
+                    return <span key={index} className="font-black text-white bg-purple-500 px-1 rounded mx-0.5 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] text-xs py-0.5">{part}</span>;
+                }
+                return <span key={index} className="font-bold opacity-70">{part}</span>;
+            }
+
+            // User UUID mentions - @{uuid}
+            if (part.startsWith('@{') && part.endsWith('}')) {
+                const targetUserId = part.slice(2, -1);
+                const mention = messageMentions?.find(m => m.id === targetUserId);
+                
+                if (mention) {
+                    return (
+                        <span
+                            key={index}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                openProfileModal(mention.id);
+                            }}
+                            className={`font-bold cursor-pointer hover:underline ${textColorClass}`}
+                        >
+                            @{mention.displayName || mention.username}
+                        </span>
+                    );
+                }
+                
+                const member = members?.find(m => m.id === targetUserId || m.userId === targetUserId);
+                if (member) {
+                    return (
+                        <span
+                            key={index}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                openProfileModal(member.userId || member.id);
+                            }}
+                            className={`font-bold cursor-pointer hover:underline ${textColorClass}`}
+                        >
+                            @{member.name || member.username}
+                        </span>
+                    );
+                }
+                
+                return <span key={index} className="font-bold opacity-70">@user</span>;
+            }
+
+            // User mentions - @username
+            if (part.startsWith('@')) {
+                const username = part.substring(1).toLowerCase();
+                const member = members?.find(m =>
+                    m.username?.toLowerCase() === username ||
+                    m.name.replace(/\s+/g, '').toLowerCase() === username
+                );
+
+                if (member) {
+                    return (
+                        <span
+                            key={index}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                openProfileModal(member.userId);
+                            }}
+                            className={`font-bold cursor-pointer hover:underline ${textColorClass}`}
+                        >
+                            {part}
+                        </span>
+                    );
+                }
+                return <span key={index} className="font-bold opacity-70">{part}</span>;
+            }
+            return part;
+        });
+    };
+
     return (
         <div
             id={`msg-${msg.id}`}
@@ -271,14 +361,14 @@ export default function ChatMessage({ msg, onForward }) {
                                     }}
                                     className={`flex items-start gap-2 mb-2 p-2 rounded-xl border-2 border-l-4 cursor-pointer hover:bg-gray-50 transition-all ${msg.replyTo.deletedAt ? 'border-gray-300 border-l-gray-400 bg-gray-50' : 'border-gray-200 border-l-accent bg-white/80'}`}
                                 >
-                                    <Reply size={12} className={`mt-0.5 ${msg.replyTo.deletedAt ? 'text-gray-400 flex-shrink-0' : 'text-accent flex-shrink-0'}`} />
+                                    <Reply size={12} className={`mt-0.5 ${msg.replyTo.deletedAt ? 'text-gray-400 flex-shrink-0' : 'text-accent-600 flex-shrink-0'}`} />
                                     <div className="flex-1 min-w-0">
                                         {msg.replyTo.deletedAt ? (
                                             <p className="text-xs text-gray-400 italic">Message deleted</p>
                                         ) : (
                                             <>
-                                                <span className="text-xs font-bold text-accent block truncate">{msg.replyTo.sender}</span>
-                                                <p className="text-xs text-gray-600 line-clamp-2 break-words">{msg.replyTo.text}</p>
+                                                <span className="text-xs font-bold text-accent-600 block truncate">{msg.replyTo.sender}</span>
+                                                <p className="text-xs text-gray-600 line-clamp-2 break-words">{parseText(msg.replyTo.text, msg.replyTo.mentions, true)}</p>
                                             </>
                                         )}
                                     </div>
@@ -286,88 +376,7 @@ export default function ChatMessage({ msg, onForward }) {
                             )}
                             <div ref={messageBubbleRef} className={`relative border-2 border-black p-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] ${isMe ? 'pr-10 bg-black text-white rounded-tl-2xl rounded-bl-2xl rounded-br-2xl shadow-[4px_4px_0px_0px_rgba(236,72,153,1)]' : 'pl-10 bg-white rounded-tr-2xl rounded-br-2xl rounded-bl-2xl'} transition-all`}>
                                 <p className="font-medium break-words">
-                                    {msg.text.split(/(@\[[a-zA-Z]+\]|@\{[a-fA-F0-9-]+\}|@[a-zA-Z0-9_]+)/g).map((part, index) => {
-                                        // Special mentions - @[keyword]
-                                        if (part.startsWith('@[')) {
-                                            const keyword = part.slice(2, -1).toLowerCase();
-
-                                            if (keyword === 'everyone') {
-                                                return <span key={index} className="font-black text-white bg-red-500 px-1 rounded mx-0.5 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] text-xs py-0.5">{part}</span>;
-                                            }
-                                            if (keyword === 'admins' || keyword === 'admin') {
-                                                return <span key={index} className="font-black text-black bg-yellow-400 px-1 rounded mx-0.5 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] text-xs py-0.5">{part}</span>;
-                                            }
-                                            if (keyword === 'owner') {
-                                                return <span key={index} className="font-black text-white bg-purple-500 px-1 rounded mx-0.5 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] text-xs py-0.5">{part}</span>;
-                                            }
-                                            return <span key={index} className="font-bold opacity-70">{part}</span>;
-                                        }
-
-                                        // User UUID mentions - @{uuid}
-                                        if (part.startsWith('@{') && part.endsWith('}')) {
-                                            const targetUserId = part.slice(2, -1);
-                                            const mention = msg.mentions?.find(m => m.id === targetUserId);
-                                            
-                                            if (mention) {
-                                                return (
-                                                    <span
-                                                        key={index}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            openProfileModal(mention.id);
-                                                        }}
-                                                        className={`font-bold cursor-pointer hover:underline ${isMe ? 'text-pink-300' : 'text-accent'}`}
-                                                    >
-                                                        @{mention.displayName || mention.username}
-                                                    </span>
-                                                );
-                                            }
-                                            
-                                            const member = members?.find(m => m.id === targetUserId || m.userId === targetUserId);
-                                            if (member) {
-                                                return (
-                                                    <span
-                                                        key={index}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            openProfileModal(member.userId || member.id);
-                                                        }}
-                                                        className={`font-bold cursor-pointer hover:underline ${isMe ? 'text-pink-300' : 'text-accent'}`}
-                                                    >
-                                                        @{member.name || member.username}
-                                                    </span>
-                                                );
-                                            }
-                                            
-                                            return <span key={index} className="font-bold opacity-70">@user</span>;
-                                        }
-
-                                        // User mentions - @username
-                                        if (part.startsWith('@')) {
-                                            const username = part.substring(1).toLowerCase();
-                                            const member = members?.find(m =>
-                                                m.username?.toLowerCase() === username ||
-                                                m.name.replace(/\s+/g, '').toLowerCase() === username
-                                            );
-
-                                            if (member) {
-                                                return (
-                                                    <span
-                                                        key={index}
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            openProfileModal(member.userId);
-                                                        }}
-                                                        className={`font-bold cursor-pointer hover:underline ${isMe ? 'text-pink-300' : 'text-accent'}`}
-                                                    >
-                                                        {part}
-                                                    </span>
-                                                );
-                                            }
-                                            return <span key={index} className="font-bold opacity-70">{part}</span>;
-                                        }
-                                        return part;
-                                    })}
+                                    {parseText(msg.text, msg.mentions)}
                                 </p>
 
                                 {/* Attachments */}
