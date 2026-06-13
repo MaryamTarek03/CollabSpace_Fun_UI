@@ -116,8 +116,38 @@ export function createApiFileRepository() {
             return Promise.all(promises);
         },
 
-        getDownloadUrl(fileId) {
-            return `${httpClient.getBaseUrl()}/spaces/storage/files/${fileId}/download`;
+        getDownloadUrl(fileId, spaceId) {
+            let resolvedSpaceId = spaceId;
+            if (!resolvedSpaceId && typeof window !== 'undefined') {
+                resolvedSpaceId = window.__activeSpaceId;
+                if (!resolvedSpaceId) {
+                    const match = window.location.pathname.match(/\/spaces\/([^\/]+)/) || window.location.pathname.match(/\/chat\/([^\/]+)/);
+                    if (match) {
+                        resolvedSpaceId = match[1];
+                    }
+                }
+            }
+            if (!resolvedSpaceId) {
+                resolvedSpaceId = 'default';
+            }
+            return `${httpClient.getBaseUrl()}/spaces/${resolvedSpaceId}/storage/files/${fileId}/download`;
+        },
+
+        async download(fileId, spaceId) {
+            let resolvedSpaceId = spaceId;
+            if (!resolvedSpaceId && typeof window !== 'undefined') {
+                resolvedSpaceId = window.__activeSpaceId;
+                if (!resolvedSpaceId) {
+                    const match = window.location.pathname.match(/\/spaces\/([^\/]+)/) || window.location.pathname.match(/\/chat\/([^\/]+)/);
+                    if (match) {
+                        resolvedSpaceId = match[1];
+                    }
+                }
+            }
+            if (!resolvedSpaceId) {
+                resolvedSpaceId = 'default';
+            }
+            return httpClient.get(`/spaces/${resolvedSpaceId}/storage/files/${fileId}/download`, { responseType: 'blob' });
         },
 
         async createFolder(spaceId, folderData) {

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuthStore, useChatStore, useUIStore } from '../../../store';
 import { getImageUrl, formatBytes } from '../../../shared/utils/helpers';
+import api from '../../../services/api';
 import { 
     Edit2, Trash2, Check, X, Reply, Forward, MoreVertical, Download,
     File, FileText, FileImage, FileAudio, FileVideo, FileCode, Archive 
@@ -143,6 +144,25 @@ export default function ChatMessage({ msg, onForward }) {
     const handleForward = () => {
         onForward && onForward(msg);
         setShowMenu(false);
+    };
+
+    const handleDownloadAttachment = async (e, attachment) => {
+        e.preventDefault();
+        try {
+            const fileId = attachment.fileId || attachment.id;
+            const spaceId = msg.spaceId || activeChatSpace?.id;
+            const blob = await api.files.download(fileId, spaceId);
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = attachment.name;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Failed to download attachment:', err);
+        }
     };
 
     // System messages
@@ -361,8 +381,7 @@ export default function ChatMessage({ msg, onForward }) {
                                                 <a
                                                     key={idx}
                                                     href={attachment.downloadUrl}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
+                                                    onClick={(e) => handleDownloadAttachment(e, attachment)}
                                                     className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border-2 transition-all text-sm font-bold ${
                                                         isMe 
                                                             ? 'bg-white/10 hover:bg-white/20 border-white/10 text-white' 

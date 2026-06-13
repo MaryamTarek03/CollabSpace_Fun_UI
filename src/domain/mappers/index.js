@@ -188,11 +188,12 @@ export const MessageMapper = {
                     downloadUrl = `${baseUrl}/spaces/storage/files/${att.fileId}/download`;
                 }
                 return {
-                    id: att.id,
+                    id: att.id || att.fileId,
                     name: att.fileName || att.name || 'Attachment',
                     size: att.fileSize || att.size || 0,
                     mimeType: att.mimeType || '',
                     downloadUrl: downloadUrl || '',
+                    fileId: att.fileId || att.id,
                 };
             });
         }

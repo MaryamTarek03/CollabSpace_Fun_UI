@@ -225,6 +225,10 @@ export async function request(endpoint, options = {}) {
             throw await parseError(response);
         }
 
+        if (options.responseType === 'blob') {
+            return await response.blob();
+        }
+
         // Return JSON if present, otherwise text
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {

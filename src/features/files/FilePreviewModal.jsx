@@ -12,6 +12,64 @@ export default function FilePreviewModal() {
     const { user } = useAuthStore();
     const { activeSpace } = useSpacesStore();
 
+    const [previewUrl, setPreviewUrl] = React.useState(null);
+    const [loadingPreview, setLoadingPreview] = React.useState(false);
+    const previewUrlRef = React.useRef(null);
+
+    const fileType = viewingFile?.type?.toLowerCase();
+    const isOfficeDoc = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(fileType);
+    const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(fileType);
+    const isVideo = ['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(fileType);
+    const isPdf = fileType === 'pdf';
+    const isLink = fileType === 'link';
+
+    React.useEffect(() => {
+        if (!viewingFile || isLink) {
+            if (previewUrlRef.current) {
+                window.URL.revokeObjectURL(previewUrlRef.current);
+                previewUrlRef.current = null;
+            }
+            setPreviewUrl(null);
+            return;
+        }
+
+        let active = true;
+        const loadPreview = async () => {
+            try {
+                setLoadingPreview(true);
+                const blob = await api.files.download(viewingFile.id, viewingFile.spaceId || activeSpace?.id);
+                if (active) {
+                    if (previewUrlRef.current) {
+                        window.URL.revokeObjectURL(previewUrlRef.current);
+                    }
+                    const url = window.URL.createObjectURL(blob);
+                    previewUrlRef.current = url;
+                    setPreviewUrl(url);
+                }
+            } catch (err) {
+                console.error('Failed to load preview:', err);
+            } finally {
+                if (active) {
+                    setLoadingPreview(false);
+                }
+            }
+        };
+
+        loadPreview();
+
+        return () => {
+            active = false;
+        };
+    }, [viewingFile]);
+
+    React.useEffect(() => {
+        return () => {
+            if (previewUrlRef.current) {
+                window.URL.revokeObjectURL(previewUrlRef.current);
+            }
+        };
+    }, []);
+
     if (!viewingFile) return null;
 
     const onClose = () => setViewingFile(null);
@@ -22,31 +80,29 @@ export default function FilePreviewModal() {
     const canDelete = isUploader || activeSpace?.ownerId === user?.id || ADMIN_ROLES.includes(userMember?.role);
 
     const fileUrl = getFileUrl(viewingFile.downloadUrl);
-    const downloadApiUrl = api.files.download(viewingFile.id);
-    const fileType = viewingFile.type?.toLowerCase();
-    const isOfficeDoc = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'].includes(fileType);
-    const isImage = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(fileType);
-    const isVideo = ['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(fileType);
-    const isPdf = fileType === 'pdf';
-    const isLink = fileType === 'link';
 
     const handleView = () => {
-        if (!fileUrl) return;
-        if (isOfficeDoc) {
-            window.open(`https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=false`, '_blank');
-        } else {
+        if (isLink && fileUrl) {
             window.open(fileUrl, '_blank');
+        } else if (previewUrl) {
+            window.open(previewUrl, '_blank');
         }
     };
 
-    const handleDownload = () => {
-        if (!downloadApiUrl) return;
-        const link = document.createElement('a');
-        link.href = downloadApiUrl;
-        link.download = viewingFile.name;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    const handleDownload = async () => {
+        try {
+            const blob = await api.files.download(viewingFile.id, viewingFile.spaceId || activeSpace?.id);
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = viewingFile.name;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Failed to download file:', err);
+        }
     };
 
     const handleDelete = () => {
@@ -201,11 +257,18 @@ export default function FilePreviewModal() {
     return (
         <ModalWrapper isOpen={!!viewingFile} onClose={onClose} size="lg" zLevel="high">
             {/* Preview Area */}
-            <div className={`${isEmbeddable ? 'h-80' : 'h-64'} border-b-2 border-black flex items-center justify-center relative overflow-hidden ${isLink ? 'bg-gradient-to-br from-blue-50 to-blue-100' : 'bg-gray-100'}`}>
-                {isImage && fileUrl ? (
-                    <img src={fileUrl} alt={viewingFile.name} className="max-w-full max-h-full object-contain" />
-                ) : isVideo && fileUrl ? (
-                    <video src={fileUrl} controls className="max-w-full max-h-full">Your browser does not support video.</video>
+            <div className={`${(isEmbeddable || isPdf) ? 'h-80' : 'h-64'} border-b-2 border-black flex items-center justify-center relative overflow-hidden ${isLink ? 'bg-gradient-to-br from-blue-50 to-blue-100' : 'bg-gray-100'}`}>
+                {loadingPreview ? (
+                    <div className="flex flex-col items-center gap-2">
+                        <div className="w-8 h-8 border-4 border-black border-t-transparent rounded-full animate-spin"></div>
+                        <p className="font-mono text-xs text-gray-500 font-bold">Loading preview...</p>
+                    </div>
+                ) : isImage && previewUrl ? (
+                    <img src={previewUrl} alt={viewingFile.name} className="max-w-full max-h-full object-contain" />
+                ) : isVideo && previewUrl ? (
+                    <video src={previewUrl} controls className="max-w-full max-h-full">Your browser does not support video.</video>
+                ) : isPdf && previewUrl ? (
+                    <iframe src={previewUrl} className="w-full h-full border-none" title={viewingFile.name} />
                 ) : isLink && isEmbeddable ? (
                     <iframe
                         src={embedUrl}

@@ -282,8 +282,12 @@ export function useSpaceFiles(spaceId, folderId = null) {
         setFiles(prev => prev.map(f => f.id === fileId ? { ...f, name } : f));
     };
 
-    const getDownloadUrl = (fileId) => {
-        return fileService.getDownloadUrl(fileId);
+    const getDownloadUrl = (fileId, fileSpaceId) => {
+        return fileService.getDownloadUrl(fileId, fileSpaceId || spaceId);
+    };
+
+    const download = (fileId, fileSpaceId) => {
+        return fileService.download(fileId, fileSpaceId || spaceId);
     };
 
     return {
@@ -294,7 +298,8 @@ export function useSpaceFiles(spaceId, folderId = null) {
         uploadFile,
         deleteFile,
         renameFile,
-        getDownloadUrl
+        getDownloadUrl,
+        download
     };
 }
 
