@@ -143,6 +143,7 @@ export const files = {
     copy: (fileIds, folderId, userId, spaceId) => fileRepo.copy(fileIds, folderId, userId, spaceId),
     createLink: (spaceId, name, url, uploadedBy, folderId) => fileRepo.createLink(spaceId, name, url, uploadedBy, folderId),
     getRecent: (spaceId, limit) => fileRepo.getRecent(spaceId, limit),
+    getStats: (spaceId) => fileRepo.getStats(spaceId),
 };
 
 // ============ ROLES ============

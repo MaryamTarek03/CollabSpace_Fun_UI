@@ -37,19 +37,21 @@ export default function SpaceDetailsView() {
     const [isJoining, setIsJoining] = React.useState(false);
     const [recentFiles, setRecentFiles] = React.useState([]);
     const [recentFilesLoading, setRecentFilesLoading] = React.useState(false);
+    const [storageStats, setStorageStats] = React.useState(null);
 
     // Set active space based on route param if not already set
     useEffect(() => {
         if (!spaceId) return;
 
         setRecentFilesLoading(true);
-        // Fetch the full space details, files, and recent files in parallel
+        // Fetch the full space details, files, recent files, and stats in parallel
         Promise.all([
             api.spaces.getById(spaceId),
             api.files.getBySpace(spaceId),
-            api.files.getRecent(spaceId, 5)
+            api.files.getRecent(spaceId, 5),
+            api.files.getStats(spaceId)
         ])
-            .then(([space, files, recent]) => {
+            .then(([space, files, recent, stats]) => {
                 const members = space.members || [];
                 const resolvedFiles = (files || []).map(file => {
                     if (file.uploaderName === 'Unknown' || !file.uploaderName) {
@@ -76,6 +78,7 @@ export default function SpaceDetailsView() {
                     files: resolvedFiles
                 });
                 setRecentFiles(resolvedRecent);
+                setStorageStats(stats);
             })
             .catch(err => {
                 console.error("Failed to fetch space details or files:", err);
@@ -415,8 +418,8 @@ export default function SpaceDetailsView() {
                     {/* Stats */}
                     <SpaceStats
                         memberCount={activeSpace.memberCount || 0}
-                        fileCount={activeSpace.files?.length || activeSpace.fileCount || 0}
-                        totalSize={(activeSpace.files || []).reduce((acc, f) => {
+                        fileCount={storageStats ? (storageStats.fileCount || storageStats.FileCount || 0) : (activeSpace.files?.length || activeSpace.fileCount || 0)}
+                        totalSize={storageStats ? (storageStats.totalFileSize || storageStats.TotalFileSize || 0) : (activeSpace.files || []).reduce((acc, f) => {
                             if (!f.size) return acc;
                             // Handle pre-formatted strings like "1.2 MB"
                             if (typeof f.size === 'string') {
@@ -431,6 +434,8 @@ export default function SpaceDetailsView() {
                             }
                             return acc + (Number(f.size) || 0);
                         }, 0)}
+                        folderCount={storageStats ? (storageStats.folderCount || storageStats.FolderCount || 0) : 0}
+                        linkCount={storageStats ? (storageStats.linkCount || storageStats.LinkCount || 0) : 0}
                         ownerName={activeSpace.ownerName || activeSpace.members?.find(m => m.userId === activeSpace.ownerId)?.name}
                         createdAt={activeSpace.createdAt}
                         isPrivate={isPrivate}

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, FileText, Folder, FolderPlus, ChevronRight, Home, Edit2, Trash2, Scissors, Copy, Clipboard, CheckSquare, Square, LayoutGrid, List, Link2 } from 'lucide-react';
 import FileCard from './components/FileCard';
 import UploadCard from './components/UploadCard';
-import { getFileIcon } from '../../shared/utils/helpers';
+import { getFileIcon, formatBytes } from '../../shared/utils/helpers';
 import { useUIStore, useSpacesStore, useAuthStore } from '../../store';
 import useFileUpload from './hooks/useFileUpload';
 import api from '../../services/api';
@@ -26,6 +26,7 @@ export default function FilesModal() {
     const [folderPath, setFolderPath] = useState([]); // breadcrumb path
     const [folders, setFolders] = useState([]);
     const [files, setFiles] = useState([]);
+    const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(false);
     const [showCreateFolder, setShowCreateFolder] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
@@ -68,17 +69,18 @@ export default function FilesModal() {
         return was;
     };
 
-    // Fetch folders and files helper
     const fetchContents = async () => {
         if (!isFilesModalOpen || !activeSpace) return;
         setLoading(true);
         try {
-            const [foldersData, filesData] = await Promise.all([
+            const [foldersData, filesData, statsData] = await Promise.all([
                 api.folders.getBySpace(activeSpace.id, currentFolderId),
-                api.files.getBySpace(activeSpace.id, currentFolderId)
+                api.files.getBySpace(activeSpace.id, currentFolderId),
+                api.files.getStats(activeSpace.id)
             ]);
             setFolders(foldersData);
             setFiles(filesData);
+            setStats(statsData);
         } catch (err) {
             console.error('Failed to fetch folder contents:', err);
         }
@@ -832,6 +834,32 @@ export default function FilesModal() {
                         </div>
                     )}
                 </div>
+                {/* Stats Footer */}
+                {stats && (
+                    <div className="px-6 py-4 border-t-2 border-black bg-gray-50 flex flex-wrap items-center justify-between gap-4 rounded-b-2xl select-none">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs font-black">
+                            <span className="px-3 py-1.5 bg-white border-2 border-black rounded-xl shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] flex items-center gap-1.5 select-none">
+                                <Folder size={14} className="text-yellow-600" />
+                                <span>{stats.folderCount || stats.FolderCount || 0} Folders</span>
+                            </span>
+                            <span className="px-3 py-1.5 bg-accent border-2 border-black rounded-xl shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] flex items-center gap-2 select-none">
+                                <div className="flex items-center gap-1">
+                                    <FileText size={14} />
+                                    <span>{stats.fileCount || stats.FileCount || 0} Files ({formatBytes(stats.totalFileSize || stats.TotalFileSize || 0)})</span>
+                                </div>
+                                {(stats.linkCount || stats.LinkCount || 0) > 0 && (
+                                    <div className="flex items-center gap-1 border-l border-black/20 pl-2">
+                                        <Link2 size={14} />
+                                        <span>{stats.linkCount || stats.LinkCount || 0} Link${(stats.linkCount || stats.LinkCount || 0) === 1 ? '' : 's'}</span>
+                                    </div>
+                                )}
+                            </span>
+                        </div>
+                        <div className="text-[10px] uppercase tracking-wider font-extrabold text-gray-500">
+                            Storage Summary
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

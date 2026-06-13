@@ -215,5 +215,9 @@ export function createApiFileRepository() {
             
             return [...mappedFiles, ...mappedLinks];
         },
+
+        async getStats(spaceId) {
+            return httpClient.get(`/spaces/${spaceId}/storage/stats`);
+        },
     };
 }
