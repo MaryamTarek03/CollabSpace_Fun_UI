@@ -4,5 +4,42 @@
             "source": "/(.*)",
             "destination": "/index.html"
         }
+    ],
+    "headers": [
+        {
+            "source": "/(.*)\\.js\\.gz",
+            "headers": [
+                {
+                    "key": "Content-Encoding",
+                    "value": "gzip"
+                },
+                {
+                    "key": "Content-Type",
+                    "value": "application/javascript"
+                }
+            ]
+        },
+        {
+            "source": "/(.*)\\.data\\.gz",
+            "headers": [
+                {
+                    "key": "Content-Encoding",
+                    "value": "gzip"
+                }
+            ]
+        },
+        {
+            "source": "/(.*)\\.wasm\\.gz",
+            "headers": [
+                {
+                    "key": "Content-Encoding",
+                    "value": "gzip"
+                },
+                {
+                    "key": "Content-Type",
+                    "value": "application/wasm"
+                }
+            ]
+        }
     ]
 }
