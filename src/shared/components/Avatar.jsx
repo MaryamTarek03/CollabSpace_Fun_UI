@@ -38,10 +38,17 @@ export default function Avatar({
     const initial = user?.name?.[0]?.toUpperCase() || '?';
     const bgColor = user?.avatarColor || '#6b7280';
 
+    // Parse className to filter out shadow classes and apply them to the inner avatar container
+    const classes = className ? className.split(' ') : [];
+    const shadowClasses = classes.filter(c => c.includes('shadow')).join(' ');
+    const outerClasses = classes.filter(c => !c.includes('shadow')).join(' ');
+
     return (
-        <div className={`relative inline-block ${className}`}>
+        <div className={`relative inline-block ${outerClasses}`}>
             <div
-                className={`${sizeClasses[size]} rounded-xl border-2 border-black flex items-center justify-center font-bold text-white overflow-hidden shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]`}
+                className={`${sizeClasses[size]} rounded-xl border-2 border-black flex items-center justify-center font-bold text-white overflow-hidden ${
+                    shadowClasses || (size === 'xl' || size === 'lg' ? 'shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]')
+                }`}
                 style={{ backgroundColor: imageUrl ? 'transparent' : bgColor }}
                 title={user?.name || 'Unknown'}
             >
