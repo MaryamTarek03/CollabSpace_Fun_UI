@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Settings, Bell, LogOut, User, Shield, Trash2, Save, Camera, ZoomIn, ZoomOut, Check, Clock, Loader, UserPlus } from 'lucide-react';
+import { X, Settings, Bell, LogOut, User, Shield, Trash2, Save, Camera, ZoomIn, ZoomOut, Check, Clock, Loader, UserPlus, ChevronLeft } from 'lucide-react';
 import api from '../../services/api';
 import { formatDate, getImageUrl, getSpaceThumbnailStyle, isImageThumbnail } from '../../shared/utils/helpers';
 import { useUIStore, useAuthStore, useSpacesStore } from '../../store';
@@ -123,6 +123,13 @@ export default function SettingsModal() {
         mentions: false
     });
     const fileInputRef = useRef(null);
+    const [showMobileContent, setShowMobileContent] = useState(false);
+
+    useEffect(() => {
+        if (isSettingsModalOpen) {
+            setShowMobileContent(false);
+        }
+    }, [isSettingsModalOpen]);
 
     useEffect(() => {
         if (isSettingsModalOpen) {
@@ -276,17 +283,24 @@ export default function SettingsModal() {
 
 
     return (
-        <ModalWrapper isOpen={isSettingsModalOpen} onClose={closeSettingsModal} size="xl" zLevel="medium" className="!max-w-4xl !h-[600px]">
+        <ModalWrapper isOpen={isSettingsModalOpen} onClose={closeSettingsModal} size="xl" zLevel="medium" className="!max-w-4xl w-[95vw] h-[85vh] max-h-[600px]">
             <CloseButton onClick={closeSettingsModal} className="absolute top-4 right-4 z-10" />
             <input type="file" ref={fileInputRef} onChange={(e) => { processAvatarFile(e.target.files?.[0]); e.target.value = ''; }} accept="image/*" className="hidden" />
 
             <div className="flex flex-col md:flex-row h-full">
                 {/* Sidebar */}
-                <div className="w-full md:w-64 bg-white border-b-2 md:border-b-0 md:border-r-2 border-black p-6 flex flex-col shrink-0">
+                <div className={`w-full md:w-64 bg-white border-b-2 md:border-b-0 md:border-r-2 border-black p-6 flex flex-col shrink-0 ${showMobileContent ? 'hidden md:flex' : 'flex'}`}>
                     <h2 className="text-2xl font-black mb-6 flex items-center gap-2"><Settings size={24} /> Settings</h2>
-                    <div className="space-y-2">
+                    <div className="space-y-2 flex flex-col w-full">
                         {tabs.map(tab => (
-                            <button key={tab.id} onClick={() => setSettingsTab(tab.id)} className={`w-full text-left px-4 py-3 rounded-xl font-bold border-2 transition-all flex items-center gap-3 ${settingsTab === tab.id ? 'bg-accent border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'bg-transparent border-transparent hover:bg-gray-100'}`}>
+                            <button
+                                key={tab.id}
+                                onClick={() => {
+                                    setSettingsTab(tab.id);
+                                    setShowMobileContent(true);
+                                }}
+                                className={`w-full text-left px-4 py-3 rounded-xl font-bold border-2 transition-all flex items-center gap-3 ${settingsTab === tab.id ? 'bg-accent border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'bg-transparent border-transparent hover:bg-gray-100'}`}
+                            >
                                 <tab.icon size={18} />{tab.label}
                             </button>
                         ))}
@@ -299,7 +313,14 @@ export default function SettingsModal() {
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 p-8 overflow-y-auto">
+                <div className={`flex-1 p-4 md:p-8 overflow-y-auto ${showMobileContent ? 'block' : 'hidden md:block'}`}>
+                    {/* Mobile Back Button */}
+                    <button
+                        onClick={() => setShowMobileContent(false)}
+                        className="md:hidden mb-6 flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-black transition-colors"
+                    >
+                        <ChevronLeft size={16} /> Back to Settings
+                    </button>
                     {/* Profile Tab */}
                     {settingsTab === 'profile' && (
                         <div className="space-y-6">
@@ -322,8 +343,8 @@ export default function SettingsModal() {
                             {cropperImage && <ImageCropper imageUrl={cropperImage} onCrop={handleCropComplete} onCancel={() => setCropperImage(null)} />}
 
                             {/* Form */}
-                            <div className="bg-white border-2 border-black rounded-2xl p-6 space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-white border-2 border-black rounded-2xl p-4 md:p-6 space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <FormField label="Display Name" value={profileData.name} onChange={(v) => handleFieldChange('name', v)} error={validationErrors.name} maxLen={30} />
                                     <FormField label="Username" value={profileData.username} onChange={(v) => handleFieldChange('username', v.toLowerCase().replace(/[^a-z0-9_]/g, ''))} error={validationErrors.username} maxLen={20} prefix="@" />
                                 </div>

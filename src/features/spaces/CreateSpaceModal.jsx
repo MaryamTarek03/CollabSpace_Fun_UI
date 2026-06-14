@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { X, ArrowLeft, Copy, Check, Send, UserPlus, Loader2, AlertCircle, Upload } from 'lucide-react';
 import { useUIStore, useSpacesStore, useAuthStore } from '../../store';
 import { SPACE_TEMPLATES, getTemplateIcon } from '../../data/spaceTemplates';
@@ -7,6 +8,7 @@ import ModalWrapper from '../../shared/components/ModalWrapper';
 import Button, { CloseButton } from '../../shared/components/Button';
 
 export default function CreateSpaceModal() {
+    const navigate = useNavigate();
     const {
         isCreateModalOpen, closeCreateModal, createStep, setCreateStep,
         newSpaceName, setNewSpaceName, newSpaceDescription, setNewSpaceDescription,
@@ -299,7 +301,18 @@ export default function CreateSpaceModal() {
 
                     <div className="flex gap-4">
                         <Button onClick={resetCreateFlow} variant="secondary">Skip for Now</Button>
-                        <Button onClick={resetCreateFlow} variant="primary" className="!bg-black">Go to Space →</Button>
+                        <Button
+                            onClick={() => {
+                                if (createdSpaceId) {
+                                    navigate(`/dashboard/spaces/${createdSpaceId}`);
+                                }
+                                resetCreateFlow();
+                            }}
+                            variant="primary"
+                            className="!bg-black"
+                        >
+                            Go to Space →
+                        </Button>
                     </div>
                 </div>
             )}

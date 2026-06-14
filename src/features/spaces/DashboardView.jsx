@@ -75,7 +75,7 @@ export default function DashboardView() {
                     <p className="text-gray-500 font-medium">Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''}! 👋</p>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                     <button
                         onClick={() => setIsPublicSearchOpen(true)}
                         className="flex items-center gap-2 bg-accent text-black px-5 py-3 rounded-xl border-2 border-black font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 transition-all active:translate-y-0 active:shadow-none"

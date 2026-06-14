@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { X, Settings, Palette, Trash2, Save, AlertTriangle, Lock, Globe, Image, Upload, Ban, Loader, Shield, Plus, Check, Users } from 'lucide-react';
 import { useUIStore, useSpacesStore, useAuthStore } from '../../store';
 import api from '../../services/api';
@@ -12,6 +13,7 @@ import Checkbox from '../../shared/components/Checkbox';
 const CATEGORY_OPTIONS = ['CREATIVE', 'TECH', 'EDUCATION', 'MEETING'];
 
 export default function SpaceSettingsModal() {
+    const navigate = useNavigate();
     const { isSpaceSettingsModalOpen, closeSpaceSettingsModal, spaceSettingsTab, setSpaceSettingsTab, setCurrentView } = useUIStore();
     const { activeSpace, updateSpace, deleteSpace, setActiveSpace } = useSpacesStore();
     const { user } = useAuthStore();
@@ -165,6 +167,7 @@ export default function SpaceSettingsModal() {
             closeSpaceSettingsModal();
             setActiveSpace(null);
             setCurrentView('dashboard');
+            navigate('/dashboard');
         } catch (err) { }
     };
 

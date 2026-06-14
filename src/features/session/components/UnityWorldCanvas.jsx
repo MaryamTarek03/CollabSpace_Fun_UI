@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Gamepad2, Terminal, ArrowLeftRight, Mic, Video, Info, Sparkles, User, RefreshCw } from 'lucide-react';
+import { Gamepad2, Terminal, ArrowLeftRight, Mic, Video, Info, Sparkles, User, RefreshCw, Folder, FileText, ArrowLeft, X, Loader, Link2 } from 'lucide-react';
 import useUIStore from '../../../store/useUIStore';
 import useAuthStore from '../../../store/useAuthStore';
+import api from '../../../services/api';
+import { getFileUrl, getFileIcon } from '../../../shared/utils/helpers';
 
 export default function UnityWorldCanvas({ spaceId }) {
     const navigate = useNavigate();
@@ -27,6 +29,16 @@ export default function UnityWorldCanvas({ spaceId }) {
     const [isRealUnityLoaded, setIsRealUnityLoaded] = useState(false);
     const [sandboxLogs, setSandboxLogs] = useState([]);
     const [playerPosition, setPlayerPosition] = useState({ x: 180, y: 70 });
+
+    // Unity File Picker State
+    const [filePickerOpen, setFilePickerOpen] = useState(false);
+    const [filePickerTarget, setFilePickerTarget] = useState({ gameObject: 'ReactBridge', methodName: 'OnFileSelected' });
+    const [filePickerAllowedTypes, setFilePickerAllowedTypes] = useState(null);
+    const [filePickerFiles, setFilePickerFiles] = useState([]);
+    const [filePickerFolders, setFilePickerFolders] = useState([]);
+    const [filePickerCurrentFolderId, setFilePickerCurrentFolderId] = useState(null);
+    const [filePickerLoading, setFilePickerLoading] = useState(false);
+    const [filePickerBreadcrumbs, setFilePickerBreadcrumbs] = useState([]);
 
     // Helper to append log messages to console
     const logEvent = (source, message) => {
@@ -153,6 +165,60 @@ export default function UnityWorldCanvas({ spaceId }) {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [isSandbox]);
 
+    // Fetch file picker files and folders
+    useEffect(() => {
+        if (!filePickerOpen) return;
+
+        let active = true;
+        const fetchPickerContents = async () => {
+            setFilePickerLoading(true);
+            try {
+                const [foldersData, filesData] = await Promise.all([
+                    api.folders.getBySpace(spaceId, filePickerCurrentFolderId),
+                    api.files.getBySpace(spaceId, filePickerCurrentFolderId)
+                ]);
+                if (active) {
+                    setFilePickerFolders(foldersData || []);
+                    setFilePickerFiles(filesData || []);
+                }
+            } catch (err) {
+                console.error('Failed to fetch picker files:', err);
+            } finally {
+                if (active) setFilePickerLoading(false);
+            }
+        };
+
+        fetchPickerContents();
+
+        return () => {
+            active = false;
+        };
+    }, [filePickerOpen, spaceId, filePickerCurrentFolderId]);
+
+    const handleSelectFile = (file) => {
+        const fileUrl = file.type === 'link' 
+            ? file.url 
+            : getFileUrl(file.downloadUrl || `/spaces/${spaceId}/storage/files/${file.id}/download`);
+
+        if (window.unityInstance) {
+            try {
+                window.unityInstance.SendMessage(
+                    filePickerTarget.gameObject, 
+                    filePickerTarget.methodName, 
+                    fileUrl
+                );
+                logEvent('React -> Unity', `Sent file URL to ${filePickerTarget.gameObject}.${filePickerTarget.methodName}: "${fileUrl}"`);
+            } catch (err) {
+                logEvent('React -> Unity', `Failed to SendMessage to Unity: ${err.message}`);
+            }
+        } else {
+            logEvent('React -> Unity (Mock)', `Simulated response: Sent file URL "${fileUrl}" to target: "${filePickerTarget.gameObject}.${filePickerTarget.methodName}"`);
+        }
+
+        // Close the modal
+        setFilePickerOpen(false);
+    };
+
     useEffect(() => {
         // Define global callbacks for Unity to communicate with React
         window.unityCallbacks = {
@@ -179,6 +245,18 @@ export default function UnityWorldCanvas({ spaceId }) {
                 logEvent('Unity -> React', `setCameraMuted(${isMuted})`);
                 setCameraEnabled(!isMuted);
             },
+            // Open file picker modal
+            openFilePicker: (gameObject, methodName, allowedTypes) => {
+                logEvent('Unity -> React', `openFilePicker('${gameObject}', '${methodName}', '${allowedTypes || 'all'}') called`);
+                setFilePickerTarget({
+                    gameObject: gameObject || 'ReactBridge',
+                    methodName: methodName || 'OnFileSelected'
+                });
+                setFilePickerAllowedTypes(allowedTypes || null);
+                setFilePickerCurrentFolderId(null);
+                setFilePickerBreadcrumbs([]);
+                setFilePickerOpen(true);
+            },
             // Mark Unity loaded from Unity side
             onUnityLoaded: () => {
                 logEvent('Unity -> React', 'onUnityLoaded()');
@@ -188,6 +266,8 @@ export default function UnityWorldCanvas({ spaceId }) {
                 callUnityExecute(profileName, spaceId);
             }
         };
+
+        window.openFilePicker = window.unityCallbacks.openFilePicker;
 
         // Initialize Loading
         logEvent('System', 'Checking for Unity WebGL build files...');
@@ -268,6 +348,7 @@ export default function UnityWorldCanvas({ spaceId }) {
                 cleanupCanvas(canvasRef.current);
             }
 
+            delete window.openFilePicker;
             delete window.unityCallbacks;
         };
     }, [spaceId]);
@@ -499,6 +580,17 @@ export default function UnityWorldCanvas({ spaceId }) {
                                 >
                                     Enable Cam
                                 </button>
+                                <button 
+                                    onClick={() => {
+                                        if (window.unityCallbacks?.openFilePicker) {
+                                            window.unityCallbacks.openFilePicker('ReactBridge', 'OnFileSelected', '');
+                                        }
+                                    }}
+                                    className="col-span-2 bg-purple-900/60 hover:bg-purple-900/80 border border-purple-500/50 rounded-xl py-2.5 px-3 text-xs font-black text-purple-200 transition-colors flex items-center justify-center gap-1.5"
+                                >
+                                    <Folder size={14} className="text-purple-400" />
+                                    Simulate Unity Interaction (Open File Picker)
+                                </button>
                             </div>
                         </div>
 
@@ -531,6 +623,123 @@ export default function UnityWorldCanvas({ spaceId }) {
                         </div>
                     </div>
 
+                </div>
+            )}
+
+            {/* File Picker Modal Overlay */}
+            {filePickerOpen && (
+                <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="bg-white border-4 border-black rounded-3xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] w-full max-w-2xl h-[500px] flex flex-col overflow-hidden text-black animate-scaleIn">
+                        {/* Header */}
+                        <div className="bg-purple-100 border-b-4 border-black p-4 flex items-center justify-between shrink-0">
+                            <div className="flex items-center gap-2">
+                                <Folder className="text-purple-600" size={24} />
+                                <h3 className="text-xl font-black tracking-wide">Select File for Space</h3>
+                            </div>
+                            <button 
+                                onClick={() => setFilePickerOpen(false)}
+                                className="w-8 h-8 bg-white border-2 border-black rounded-full flex items-center justify-center hover:bg-red-100 transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none"
+                            >
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        {/* Navigation breadcrumbs */}
+                        <div className="bg-amber-50 border-b-2 border-black px-6 py-3 flex items-center gap-2 text-sm font-bold shrink-0 overflow-x-auto whitespace-nowrap scrollbar-thin">
+                            <button 
+                                onClick={() => {
+                                    setFilePickerCurrentFolderId(null);
+                                    setFilePickerBreadcrumbs([]);
+                                }}
+                                className="hover:underline text-indigo-600"
+                            >
+                                Root
+                            </button>
+                            {filePickerBreadcrumbs.map((crumb, idx) => (
+                                <React.Fragment key={crumb.id}>
+                                    <span className="text-gray-400">/</span>
+                                    <button 
+                                        onClick={() => {
+                                            setFilePickerCurrentFolderId(crumb.id);
+                                            setFilePickerBreadcrumbs(filePickerBreadcrumbs.slice(0, idx + 1));
+                                        }}
+                                        className="hover:underline text-indigo-600 max-w-[120px] truncate"
+                                    >
+                                        {crumb.name}
+                                    </button>
+                                </React.Fragment>
+                            ))}
+                        </div>
+
+                        {/* Main Files/Folders Grid */}
+                        <div className="flex-1 overflow-y-auto p-6 bg-[url('https://www.transparenttextures.com/patterns/grid-me.png')]">
+                            {filePickerLoading ? (
+                                <div className="flex flex-col items-center justify-center h-full py-12">
+                                    <Loader className="animate-spin text-purple-600 mb-2" size={32} />
+                                    <p className="font-bold text-gray-500 text-sm">Loading storage...</p>
+                                </div>
+                            ) : (filePickerFolders.length === 0 && filePickerFiles.length === 0) ? (
+                                <div className="flex flex-col items-center justify-center h-full py-12 text-center text-gray-400">
+                                    <Folder size={48} className="stroke-1 mb-2" />
+                                    <p className="font-bold text-sm">This folder is empty</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                    {/* Folders */}
+                                    {filePickerFolders.map(folder => (
+                                        <button
+                                            key={folder.id}
+                                            onClick={() => {
+                                                setFilePickerCurrentFolderId(folder.id);
+                                                setFilePickerBreadcrumbs(prev => [...prev, { id: folder.id, name: folder.name }]);
+                                            }}
+                                            className="flex flex-col items-start p-4 bg-yellow-50 hover:bg-yellow-100 border-2 border-black rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all text-left group"
+                                        >
+                                            <Folder className="text-yellow-600 group-hover:scale-110 transition-transform mb-2" size={28} />
+                                            <span className="font-black text-sm text-gray-900 truncate w-full">{folder.name}</span>
+                                            <span className="text-[10px] text-gray-500 font-bold mt-1">Folder</span>
+                                        </button>
+                                    ))}
+
+                                    {/* Files / Links */}
+                                    {filePickerFiles
+                                        .filter(file => {
+                                            if (!filePickerAllowedTypes) return true;
+                                            const extension = file.name?.split('.').pop()?.toLowerCase();
+                                            const typesList = filePickerAllowedTypes.toLowerCase().split(',').map(t => t.trim());
+                                            return typesList.includes(extension) || typesList.includes(file.type);
+                                        })
+                                        .map(file => (
+                                            <button
+                                                key={file.id}
+                                                onClick={() => handleSelectFile(file)}
+                                                className="flex flex-col items-start p-4 bg-purple-50 hover:bg-purple-100 border-2 border-black rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all text-left group"
+                                            >
+                                                <div className="mb-2 group-hover:scale-110 transition-transform">
+                                                    {file.type === 'link' ? <Link2 className="text-blue-500" size={28} /> : getFileIcon(file.type)}
+                                                </div>
+                                                <span className="font-black text-sm text-gray-900 truncate w-full" title={file.name}>
+                                                    {file.name}
+                                                </span>
+                                                <span className="text-[10px] text-gray-500 font-bold mt-1 uppercase">
+                                                    {file.type} {file.size ? `• ${file.size}` : ''}
+                                                </span>
+                                            </button>
+                                        ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer / Selected Info */}
+                        <div className="bg-gray-50 border-t-2 border-black p-4 flex items-center justify-between shrink-0 text-xs font-bold text-gray-500">
+                            <span>Target: {filePickerTarget.gameObject}.{filePickerTarget.methodName}</span>
+                            {filePickerAllowedTypes && (
+                                <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded border border-purple-200">
+                                    Filters: {filePickerAllowedTypes}
+                                </span>
+                            )}
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

@@ -122,7 +122,7 @@ export default function SpaceFilters() {
             </div>
 
             {/* Filters */}
-            <div className="flex flex-col md:flex-row gap-3 w-full lg:w-auto">
+            <div className="flex flex-col md:flex-row md:flex-wrap gap-3 w-full lg:w-auto">
                 <FilterDropdown
                     value={activeCategory}
                     onChange={setActiveCategory}
