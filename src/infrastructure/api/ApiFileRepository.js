@@ -101,7 +101,7 @@ export function createApiFileRepository() {
             const resolvedSpaceId = spaceId || useSpacesStore.getState().activeSpace?.id || useChatStore.getState().activeChatSpace?.id || 'default';
             const ids = Array.isArray(fileIds) ? fileIds : [fileIds];
             const promises = ids.map(id => 
-                httpClient.post(`/spaces/${resolvedSpaceId}/storage/items/${id}/move`, { folderId: folderId || null })
+                httpClient.put(`/spaces/${resolvedSpaceId}/storage/items/${id}/move`, { newFolderId: folderId || null })
             );
             return Promise.all(promises);
         },
@@ -111,7 +111,7 @@ export function createApiFileRepository() {
             const resolvedSpaceId = spaceId || useSpacesStore.getState().activeSpace?.id || useChatStore.getState().activeChatSpace?.id || 'default';
             const ids = Array.isArray(fileIds) ? fileIds : [fileIds];
             const promises = ids.map(id => 
-                httpClient.post(`/spaces/${resolvedSpaceId}/storage/items/${id}/copy`, { folderId: folderId || null })
+                httpClient.post(`/spaces/${resolvedSpaceId}/storage/items/${id}/copy`, { targetFolderId: folderId || null })
             );
             return Promise.all(promises);
         },

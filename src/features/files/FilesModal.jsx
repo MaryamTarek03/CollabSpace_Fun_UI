@@ -426,7 +426,7 @@ export default function FilesModal() {
     return (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeFilesModal}></div>
-            <div className="relative w-full max-w-3xl bg-white border-4 border-black rounded-3xl shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] flex flex-col h-[600px] animate-in zoom-in-95 duration-200">
+            <div className="relative w-full max-w-5xl bg-white border-4 border-black rounded-3xl shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] flex flex-col h-[750px] animate-in zoom-in-95 duration-200">
 
                 {/* Header with Filter */}
                 <div className="p-6 border-b-2 border-black bg-blue-50 rounded-t-2xl">
